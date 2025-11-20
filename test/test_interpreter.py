@@ -3,6 +3,7 @@ Test the interpreter (basic functions)
 """
 from pathlib import Path
 from yamlpp import Interpreter
+from super_collections import SuperDict
 
 CURRENT_DIR = Path(__file__).parent 
 
@@ -21,7 +22,8 @@ def test_01():
     assert i.context is not None, "Context should not be empty"
 
 
-    tree = i.dot_tree
+    tree = i.tree
+    assert isinstance(tree, SuperDict), f"Tree is not SuperDict but a {type(tree).__name__}!"
     r = i.yaml # renders
     print(r)
 
@@ -32,7 +34,7 @@ def test_01():
     assert tree.server.url == 'http://test.example.com'
 
     # .foreach: check we have the same users and they have the same roles
-    users = i.context # from the source
+    users = i.context['users'] # from the source
     assert [account.name for account in tree.accounts] == users
     assert [account.role for account in tree.accounts] == ['user'] * len(users)
     
@@ -50,7 +52,7 @@ def test_02():
     i.context['env'] = 'dev'
     i.context['comment'] = 'This is added'
 
-    tree = i.dot_tree
+    tree = i.tree
     r = i.yaml # renders
     print(r)
     
@@ -67,7 +69,7 @@ def test_import_01():
     i = Interpreter()
     i.load(FILENAME)
 
-    tree = i.dot_tree
+    tree = i.tree
     r = i.yaml # renders
     print(r)
 
@@ -101,7 +103,7 @@ def test_import_02():
     # modify parameter before rendering
     i.context['env']= 'prod'
 
-    tree = i.dot_tree
+    tree = i.tree
     r = i.yaml # renders
     print(r)
 
@@ -116,7 +118,7 @@ def test_module():
     i = Interpreter()
     i.load(FILENAME)
 
-    tree = i.dot_tree
+    tree = i.tree
     r = i.yaml # renders
     print(r)
 
@@ -131,6 +133,6 @@ def test_function():
     FILENAME = SOURCE_DIR / 'test_function.yaml'
     i = Interpreter()
     i.load(FILENAME)
-    tree = i.dot_tree
+    tree = i.tree
     r = i.yaml # renders
     print(r)

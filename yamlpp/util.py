@@ -43,11 +43,7 @@ def load_yaml(filename:str):
     return text, data
 
 
-
-
-
-
-    
+  
 
 
 def get_line_number(yaml_obj):

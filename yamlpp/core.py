@@ -79,6 +79,8 @@ class Interpreter:
     def __init__(self, filename:str=None, source_dir:str=None):
         "Initialize with the YAMLpp source code"
         self._yaml = None
+        self._tree = None
+        self._dot_tree = None
         if not source_dir:
             # working directory
             self._source_dir = os.getcwd()
@@ -140,6 +142,14 @@ class Interpreter:
     # -------------------------
     # Rendering
     # -------------------------
+
+    @staticmethod
+    def to_yaml(node:Node) -> str:
+        "Translate a tree into a YAML string"
+        buff = StringIO()
+        yaml.dump(node, buff)
+        return buff.getvalue()
+
     
     def render_tree(self) -> Node:
         """
@@ -153,25 +163,24 @@ class Interpreter:
         assert isinstance(self._tree, (dict, list))
         assert self._tree is not None, "Empty tree!"
 
-        # produce the string
-        buff = StringIO()
-        yaml.dump(self._tree, buff)
-        self._yaml = buff.getvalue()
+        self._yaml = self.to_yaml(self._tree)
         self._dot_tree = super_collect(self._tree)
         return self._dot_tree
     
 
+    @property
     def tree(self) -> Node:
         """
         Return the rendered tree (lazy)
 
-        It returns a list/dictionary accessible with the dot notation.
+        It returns a list/dictionary, accessible with the dot notation
+        (but without the meta data, etc.)
         """
-        if self._yaml is None:
+        if self._dot_tree is None:
             self.render_tree()
-        else:
-            return self._dot_tree
-        
+        assert self._dot_tree is not None, "Failed to regenerate tree!"
+        return self._dot_tree
+    
         
     
     def dump(self) -> str:
@@ -281,6 +290,8 @@ class Interpreter:
                     r = self.handle_function(value)
                 elif key == ".call":
                     r = self.handle_call(value)
+                elif key == ".export":
+                    r = self.handle_export(value)
                 else:
                     # normal YAML key
                     r = {key: self.process_node(value)}
@@ -471,6 +482,24 @@ class Interpreter:
         new_block['.context'] = assigned_args
         return self.process_node(new_block)
 
+
+    def handle_export(self, block: Dict[str, Any]) -> Any:
+        """
+        Exports the subtree into an external file
+
+        block = {
+            ".filename": "...",
+            ".content": {...} or []
+        }
+        """
+        filename = self.evaluate_expression(get(block, '.filename'))
+        full_filename = os.path.join(self.source_dir, filename)
+        tree = self.process_node(get(block, '.content'))
+        yaml_output = self.to_yaml(tree)
+        with open(full_filename, 'w') as f:
+            f.write(yaml_output)
+
+        return None
 
 
         
