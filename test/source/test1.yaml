@@ -8,7 +8,7 @@ server:
   host: "{{ host }}"
   .switch:
     .expr: "{{ env }}"
-    .cases:
+    .cases2:
       dev:
         url: "http://{{ host }}:5000"
       test:

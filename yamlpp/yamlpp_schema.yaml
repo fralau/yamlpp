@@ -1,0 +1,116 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "YAMLpp Schema"
+$ref: "#/definitions/node"
+
+definitions:
+  scalar:
+    oneOf:
+      - type: string
+      - type: number
+      - type: boolean
+      - type: "null"
+
+  sequence:
+    type: array
+    items:
+      $ref: "#/definitions/node"
+
+  mapping:
+    type: object
+    properties:
+      .context:
+        $ref: "#/definitions/mapping"
+
+      .do:
+        $ref: "#/definitions/collection"
+
+      .foreach:
+        description: "Iterate through a sequence"
+        type: object
+        properties:
+          .values:
+            type: array
+            items:
+              type: string
+            minItems: 2
+          .do:
+            $ref: "#/definitions/collection"
+        required: [".values", ".do"]
+        additionalProperties: false
+
+      .switch:
+        description: "Switch between different cases"
+        type: object
+        properties:
+          .expr:
+            type: string
+          .cases:
+            $ref: "#/definitions/mapping"
+          .default:
+            $ref: "#/definitions/node"
+        required: [".expr", ".cases"]
+        additionalProperties: false
+
+      .if:
+        description: "Implements if/then/else"
+        type: object
+        properties:
+          .cond:
+            type: string
+          .then:
+            $ref: "#/definitions/node"
+          .else:
+            $ref: "#/definitions/node"
+        required: [".cond", ".then"]
+        additionalProperties: false
+
+      .import:
+        descrption: "Import an external YAML(pp) file"
+        type: string
+
+      .function:
+        description: "Declare a function that returns a node"
+        type: object
+        properties:
+          .name:
+            type: string
+          .args:
+            type: array
+            items:
+              type: string
+          .do:
+            $ref: "#/definitions/collection"
+        required: [".name", ".args", ".do"]
+        additionalProperties: false
+
+      .call:
+        type: object
+        properties:
+          .name:
+            type: string
+          .args:
+            type: array
+            items:
+              $ref: "#/definitions/node"
+        required: [".name"]
+        additionalProperties: false
+
+      .module:
+        type: string
+
+    # For non-directive keys, allow generic nodes
+    additionalProperties:
+      $ref: "#/definitions/node"
+
+  node:
+    description: "A YAML node: scalar, sequence, or mapping"
+    oneOf:
+      - $ref: "#/definitions/scalar"
+      - $ref: "#/definitions/sequence"
+      - $ref: "#/definitions/mapping"
+
+  collection:
+    description: "A non-scalar YAML node (sequence or mapping)"
+    oneOf:
+      - $ref: "#/definitions/sequence"
+      - $ref: "#/definitions/mapping"
