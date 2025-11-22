@@ -10,7 +10,9 @@ Manually maintaining different versions can be time-consuming and error-prone.
 ## Introducing YAMLpp
 What if we had a way to generate a new YAML file (or more than one) according to a single pattern?
 
-The purpose of **YAML Preprocessor (YAMLpp)** is to help programmers prepare YAML files from a template, with rules that produce the appropriate results according to source data. It extends standard YAML with constructs for variable declaration, conditionals, iteration, functions, importing and exporting YAML files, and importing Python modules.  
+The purpose of **YAML Preprocessor (YAMLpp)** is to help programmers prepare YAML files from a template, with rules that produce the YAML tree according to source data. It extends standard YAML with constructs for variable declaration, conditionals, iteration, functions, importing and exporting YAML files, and importing Python modules.
+
+YAMLpp is a macro language, since it manipulates the YAML tree on which it resides.
 
 
 Here is a simple example:
@@ -30,19 +32,17 @@ message: "Hello, Alice!"
 
 ### General principles
 
-> All language constructs are expressed as valid YAML keys, prefixed with the symbol **`.`**.
-> They "run, transform the tree and disappear".
-
+1. All language constructs are expressed as valid YAML keys, prefixed with the symbol **`.`**.
+They "run, transform the tree and disappear".
 1. All other keys in the source file are plain YAML.
 2. Values can be any YAML valid value. 
 3. They can also be a string containing a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
-   If the result string is a valid Python literal (a list or a dictionary), then YAMLpp will convert it.
-4. The output is a YAML file where all YAMLpp constructs have disappeared, and have been
-replaced by a new tree.
+   If the result string is a valid Python literal (a scalar, or a list or dictionary), then YAMLpp will convert it.
+4. The output is a YAML tree where all YAMLpp constructs have disappeared.
 
 **YAMLpp obeys the rules of YAML syntax:**
 - It provides declarative constructs without breaking YAML syntax. 
-- It allows modular, reusable, and expressive constructs to create YAML files
+- It allows modular, reusable, and expressive constructs that create YAML files
 
 
 
@@ -77,6 +77,8 @@ Each construct is defined below with its purpose and an example.
 
 ### `.context`
 **Definition**: Defines a local scope of variables for a block.
+
+You can define a `.context` block at any node of the tree.
 The variables defined are valid for all the siblings and the descendents
 (but are not accessible in part of the tree that are higher than this block.)
 
@@ -192,7 +194,7 @@ This loads and expands the contents of `other.yaml` into the current document.
 
 
 ### `.function`
-**Definition**: Defines a reusable function with arguments and a body. 
+**Definition**: Defines a reusable function with arguments and a body. Arguments are positional.
 
 **Caution**: These functions are not available "as-is" inside of Jinja expressions.
 
@@ -252,15 +254,20 @@ This makes variables and filters from `module.py` available in Jinja2 expression
 ## 🛠️ Troubleshooting
 
 ### Common Errors
-- **Undefined Variables**: Variable used in an expression is not defined in the current context or scope. Ensure all variables are declared within `.context` or passed correctly.  
-- **Unquoted Jinja expressions**: A YAMLpp file must be a valid YAML file. It means that values
+1. **Undefined Variables**: Variable used in an expression is not defined in the current context or scope. Ensure all variables are declared within `.context` or passed correctly.  
+2. **Duplicate keys**: A mapping (dictionary) can have only one key of each type.
+   If a key is repeated, the parser will raise an error.
+   If you are using the same key two times or more, it's likely that you should
+   use a sequence (list) of mappings instead of a mapping.
+   [This is principle applicable to YAML in general.]
+3. **Unquoted Jinja expressions**: A YAMLpp file must be a valid YAML file. It means that values
   that contain a Jinja expression **must** be quoted: 
     - ❌ Incorrect: `message: Hello, {{ name }}!`
     - ✅ Correct: `message:"Hello, {{ name }}!"`
-- **Missing Functions or Modules**: Happens if a referenced function or module is not imported or defined. Verify `.module` imports and `.function` definitions.  
-- **Argument Mismatches**: When calling functions, ensure the number and order of arguments match the `.args` definition.  
-- **Syntax Errors**: Invalid YAML or incorrect use of YAMLpp directives can cause preprocessing failures. Validate YAML syntax and directive structure.  
-- **Incorrect Expression Syntax**: Jinja2 expressions must be properly formatted. Check for missing braces, quotes, or invalid operations.  
+3. **Missing Functions or Modules**: Happens if a referenced function or module is not imported or defined. Verify `.module` imports and `.function` definitions.  
+4. **Argument Mismatches**: When calling functions, ensure the number and order of arguments match the `.args` definition.  
+5. **Syntax Errors**: Invalid YAML or incorrect use of YAMLpp directives can cause preprocessing failures. Validate YAML syntax and directive structure.  
+6. **Incorrect Expression Syntax**: Jinja2 expressions must be properly formatted. Check for missing braces, quotes, or invalid operations.  
 
 ### Debugging Tips
 - Check error messages carefully for line numbers (in the YAML file) and hints 

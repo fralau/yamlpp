@@ -5,7 +5,6 @@ Core application for the YAMLpp interpreter
 """
 
 import os
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union, Tuple
 from io import StringIO
 import ast
@@ -17,8 +16,9 @@ from jinja2.exceptions import UndefinedError as Jinja2UndefinedError
 
 
 from .stack import Stack
-from .util import yaml, load_yaml, dequote, get_line_number, validate_node
+from .util import yaml_rt, load_yaml, validate_node
 from .util import CommentedMap, CommentedSeq # Patched versions
+from .error import YAMLppError, Error
 from .import_modules import get_exports
 
 
@@ -41,28 +41,6 @@ GLOBAL_CONTEXT = {
 
 
 
-
-class Error(str, Enum):
-    VALIDATION = "ValidationError"
-    KEY = "KeyNotFound"
-    INDEX = "IndexNotFound"
-    ARGUMENTS = "ArgumentMismatch"
-    # add more categories as needed
-
-class YAMLppError(Exception):
-    """
-    Custom exception tied to a Ruamel YAML node.
-    Extracts line number and line text directly from the node.
-    """
-    def __init__(self, node, err_type: Error, message: str):
-        # Ruamel line numbers are zero-based, so add 1
-        self.line_no = get_line_number(node)
-        self.err_type = err_type
-        self.message = message
-        super().__init__(self.__str__())
-
-    def __str__(self):
-        return (f"[{self.err_type}] Line {self.line_no}: {self.message}")
 
 class MappingEntry:
     """
@@ -133,13 +111,30 @@ class Interpreter:
         
 
 
-    def load(self, filename:str, validate:bool=False):
-        "Load a YAMLpp file"
-        self._source_dir = os.path.dirname(filename)
-        self._yamlpp, self._initial_tree = load_yaml(filename)
+    def load(self, source:str, is_text:bool=False, validate:bool=False):
+        """
+        Load a YAMLpp file (by default, source is the filename)
+
+        Arguments:
+
+        - source: the filename or text
+        - is_text: set to True, if it is text
+        - validate: submit the YAML source to a schema validation
+            (effective, but less helpful in case of error)
+        """
+        if not is_text:
+            self._source_dir = os.path.dirname(source)
+        self._yamlpp, self._initial_tree = load_yaml(source, is_text)
         if validate:
             validate_node(self._initial_tree)
         self._reset_environment()
+
+    def load_text(self, text:str):
+        """
+        Load text (simplified)
+        """
+        return self.load(text, is_text=True)
+
 
 
     def _reset_environment(self):
@@ -201,7 +196,7 @@ class Interpreter:
     def to_yaml(node:Node) -> str:
         "Translate a tree into a YAML string"
         buff = StringIO()
-        yaml.dump(node, buff)
+        yaml_rt.dump(node, buff)
         return buff.getvalue()
 
     

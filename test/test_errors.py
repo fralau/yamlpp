@@ -1,13 +1,15 @@
 """
 Test errors of the interpreter (basic functions)
 """
+import io
 from pathlib import Path
 
 import pytest
 
 
-from yamlpp import Interpreter, YAMLppError
-from yamlpp.util import print_yaml
+from yamlpp import Interpreter
+from yamlpp.error import YAMLppError, YAMLValidationError
+from yamlpp.util import print_yaml, load_yaml
 
 CURRENT_DIR = Path(__file__).parent 
 
@@ -15,7 +17,7 @@ SOURCE_DIR = CURRENT_DIR / 'Source'
 
 def test_err_0():
     """
-    Test first YAMLpp program with errors
+    Test YAMLpp program with errors
     """
     FILENAME = SOURCE_DIR / 'test1.yaml'
     i = Interpreter()
@@ -29,6 +31,26 @@ def test_err_0():
 
     with pytest.raises(YAMLppError) as e:
         tree = i.tree
-    assert "not contain '.cases'" in str(e)
+    assert "not contain '.cases'" in str(e.value)
     assert "Line 9" in str(e)
 
+def test_err_1():
+    """
+    Test a duplicate key
+    """
+    FIRST_HOST = 'localhost'
+    SECOND_HOST = '192.168.1.4'
+    source = f"""  
+.context:
+  env: test
+  host: {FIRST_HOST}
+  users: [alice, bob, charlie, michael]
+  host: {SECOND_HOST}
+    """
+
+    # tree = load_yaml(source, is_file=False)
+
+    i = Interpreter()
+    with pytest.raises(YAMLValidationError) as e:
+        i.load_text(source)
+        assert e.err_type == "DuplicateKeyError"
