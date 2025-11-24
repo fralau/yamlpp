@@ -14,6 +14,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from jsonschema import validate, Draft7Validator
 from rich.console import Console
 from rich.syntax import Syntax
+from rich.text import Text
 
 from .error import YAMLValidationError, YAMLppValidationError, get_line_number
 
@@ -81,10 +82,12 @@ def load_yaml(source:str, is_text:bool=False):
 
 
   
-def print_yaml(yaml_text:str):
-    "Print YAML with syntax highlighting"
+def print_yaml(yaml_text: str, filename: str | Path | None = None):
+    """Print YAML with syntax highlighting, optionally showing filename."""
+    if filename is not None:
+        text = Text(f"File: {filename}", style="green")
+        console.print(text)
     syntax = Syntax(yaml_text, "yaml", line_numbers=True, theme="monokai")
-    # Print with syntax highlighting
     console.print(syntax)
 
 

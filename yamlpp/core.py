@@ -256,6 +256,8 @@ class Interpreter:
 
     def evaluate_expression(self, expr: str|Any) -> Node:
         """
+        Evaluate an expression
+        
         Evaluate a Jinja2 expression string against the stack.
         If the expr is not a string, converts it.
         """
@@ -542,12 +544,12 @@ class Interpreter:
 
         block = {
             ".filename": "...",
-            ".content": {...} or []
+            ".do": {...} or []
         }
         """
         filename = self.evaluate_expression(entry['.filename'])
         full_filename = os.path.join(self.source_dir, filename)
-        tree = self.process_node(entry['.content'])
+        tree = self.process_node(entry['.do'])
         yaml_output = self.to_yaml(tree)
         with open(full_filename, 'w') as f:
             f.write(yaml_output)

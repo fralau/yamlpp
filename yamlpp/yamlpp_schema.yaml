@@ -22,13 +22,15 @@ definitions:
         $ref: "#/definitions/mapping"
 
       .do:
+        description: "Do a sequence of actions"
         $ref: "#/definitions/collection"
 
       .foreach:
-        description: "Iterate through a sequence"
+        description: "Iterate through a sequence, for each item in a list"
         type: object
         properties:
           .values:
+            description: Variable and list
             type: array
             items:
               type: string
@@ -47,7 +49,7 @@ definitions:
           .cases:
             $ref: "#/definitions/mapping"
           .default:
-            $ref: "#/definitions/node"
+            $ref: "#/definitions/collection"
         required: [".expr", ".cases"]
         additionalProperties: false
 
@@ -58,9 +60,9 @@ definitions:
           .cond:
             type: string
           .then:
-            $ref: "#/definitions/node"
+            $ref: "#/definitions/collection"
           .else:
-            $ref: "#/definitions/node"
+            $ref: "#/definitions/collection"
         required: [".cond", ".then"]
         additionalProperties: false
 
@@ -69,7 +71,7 @@ definitions:
         type: string
 
       .function:
-        description: "Declare a function that returns a node"
+        description: "Declare a YAMLpp function that returns a node"
         type: object
         properties:
           .name:
@@ -84,6 +86,7 @@ definitions:
         additionalProperties: false
 
       .call:
+        description: "Call a YAMLpp function"
         type: object
         properties:
           .name:
@@ -96,7 +99,23 @@ definitions:
         additionalProperties: false
 
       .module:
+        description: "Imports an external Python module and adds it variables/functions/filters to the stack"
         type: string
+
+
+      .export:
+          description: "Export the current node to an external file"
+          type: object
+          properties:
+            .filename:
+              description: "The path to the export file"
+              type: string
+            .do:
+              $ref: "#/definitions/collection"
+          required: [".filename", ".do"]
+          additionalProperties: false
+
+
 
     # For non-directive keys, allow generic nodes
     additionalProperties:

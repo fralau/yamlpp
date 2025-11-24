@@ -14,6 +14,7 @@ uv.lock
 
 # testing
 .pytest*
+_export/
 
 # editor
 .vscode

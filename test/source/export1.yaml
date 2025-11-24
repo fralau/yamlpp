@@ -1,0 +1,8 @@
+- name: alice
+  role: user
+- name: bob
+  role: user
+- name: charlie
+  role: user
+- name: michael
+  role: user
