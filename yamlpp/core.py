@@ -13,10 +13,10 @@ import ast
 
 from jinja2 import Environment, StrictUndefined
 from jinja2.exceptions import UndefinedError as Jinja2UndefinedError
-
+from pprint import pprint
 
 from .stack import Stack
-from .util import yaml_rt, load_yaml, validate_node
+from .util import yaml_rt, load_yaml, validate_node, parse_yaml
 from .util import CommentedMap, CommentedSeq # Patched versions
 from .error import YAMLppError, Error
 from .import_modules import get_exports
@@ -141,6 +141,7 @@ class Interpreter:
         "Reset the Jinja environment"
         # create the interpretation environment
         # variables not found will raise an error
+        # NOTE: globals and filters are NO LONGER pure dictionaries, but a stack of dictionaries
         self._jinja_env = env = Environment(undefined=StrictUndefined)
         env.globals = Stack(env.globals)
         assert isinstance(env.globals, Stack)
@@ -173,8 +174,8 @@ class Interpreter:
         return self._yamlpp
     
     @property
-    def jinja_env(self):
-        "The jinja environment"
+    def jinja_env(self) -> Environment:
+        "The jinja environment (containes globals and filters)"
         return self._jinja_env
     
     @property
@@ -187,7 +188,33 @@ class Interpreter:
     def source_dir(self) -> str:
         "The import directory"
         return self._source_dir
-    
+
+    # -------------------------
+    # Preprocessing
+    # -------------------------
+    def set_context(self, arguments:dict):
+        """
+        Update the first '.context' of the initial tree with a dictionary (key, value pairs).
+
+        Literal are turned into objects (strings remain strings).
+        """
+        for key, value in arguments.items():
+                arguments[key] = parse_yaml(value)
+        # print("Variables (after):", arguments)
+        itree = self.initial_tree
+        if isinstance(itree, CommentedSeq):
+            # Special case: the tree starts with a sequence
+            new_start = CommentedMap({
+                '.context': arguments,
+                '.do': itree
+            })
+            self.initial_tree = new_start
+        else:
+            # Usual case: a map
+            context = itree.get('.context', CommentedMap())
+            context.update(arguments)
+            itree['.context'] = context
+
     # -------------------------
     # Rendering
     # -------------------------
@@ -257,7 +284,7 @@ class Interpreter:
     def evaluate_expression(self, expr: str|Any) -> Node:
         """
         Evaluate an expression
-        
+
         Evaluate a Jinja2 expression string against the stack.
         If the expr is not a string, converts it.
         """

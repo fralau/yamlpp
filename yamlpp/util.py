@@ -62,8 +62,11 @@ yaml_rt = YAML(typ='rt')
 yaml_rt.allow_duplicate_keys = False
 
 
-def load_yaml(source:str, is_text:bool=False):
-    "Loads a YAML file (by default, source is a filename)"
+def load_yaml(source:str, is_text:bool=False) -> tuple[str, Any]:
+    """
+    Loads a YAML file (by default, source is a filename), in a round-trip way.
+    Returns both the text and the tree.
+    """
     if is_text:
         text = source          
     else:
@@ -79,6 +82,15 @@ def load_yaml(source:str, is_text:bool=False):
     except YAMLError as e:
         raise YAMLValidationError(e)
     return text, data
+
+yaml_safe = YAML(typ='safe')
+
+def parse_yaml(source: str) -> Any:
+    "Loads YAML in a safe way (useful for parsing snippets)"
+    try:
+        return yaml_safe.load(source)
+    except YAMLError as e:
+        raise YAMLValidationError(e, prefix=f"Incorrect input: {source}\n")
 
 
   

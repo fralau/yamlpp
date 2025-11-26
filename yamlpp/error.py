@@ -27,9 +27,9 @@ class YAMLValidationError(GeneralYAMLppError):
     Custom exception tied to the loading process of Ruamel
     Extracts line number directly from the node and prints a concise message.
     """
-    def __init__(self, e):
+    def __init__(self, e, prefix:str=''):
         line_no = e.problem_mark.line + 1 
-        message = str(e)
+        message = f"{prefix} {e}"
         err_type = type(e).__name__
         super().__init__(line_no, err_type, message)
 

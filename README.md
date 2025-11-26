@@ -251,6 +251,87 @@ def define_env(env: ModuleEnvironment):
 
 This makes variables and filters from `module.py` available in Jinja2 expressions.
 
+### `.export`
+**Definition**: Exports the current portion of the tree into an external file  
+**Example**:
+```yaml
+.export:
+  .filename: "export/foo.yaml"
+  .do: ... # thepart you wish to export.
+```
+
+The tree to be exported can be either plain YAML or contain YAMLpp constructs
+(which will be expanded into YAML, before being exported).
+
+**Output**:
+None (the tree is exported to the external file)
+
+
+
+## Dynamically changing the initial context
+
+There are two ways of changing the context of your YAMLpp file.
+
+### From the command line
+
+From the command-line, you can update (or create) the top-level `.create` context
+in your initial YAMLpp tree.
+
+```sh
+yamlpp test1.yaml --set env=prod count=5
+```
+
+Supposing that your YAMLpp file contained:
+
+```yaml
+.context
+  env: test
+  count: 3
+  foo: barbaz
+```
+
+It will contain:
+```yaml
+.context
+  env: prod
+  count: 5
+  foo: barbaz
+```
+
+If the tree started with a sequence, a top level map will be created:
+
+```yaml
+.context
+  env: prod
+  count: 5
+.do
+  - ...
+```
+
+#### Arguments as sequences or maps
+You can also set arguments as sequences or maps (use YAML syntax):
+
+```sh
+yamlpp test1.yaml --set env=prod users="[Laurent, Paul]"
+```
+
+
+### Through environment variables
+
+Another way to change dynamically the initial conditions that govern a YAMLpp program,
+is to use the environment variables of the OS, through the `@getenv()` function.
+
+It be used in _any_ part of the YAMLpp tree.
+
+```yaml
+server:
+  address: "{{ get_env('MY_SERVER`)}}"
+```
+
+
+
+
+
 ## 🛠️ Troubleshooting
 
 ### Common Errors

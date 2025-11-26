@@ -3,7 +3,6 @@ The terminal client
 """
 import sys
 import traceback
-import yaml
 import pprint
 
 import argparse
@@ -17,17 +16,90 @@ from rich.syntax import Syntax
 
 
 from .core import Interpreter
-from .util import load_yaml
+from .util import print_yaml, load_yaml
 
+
+# -------------------------
+# Presentation
+# -------------------------
 console = Console()
+err_console = Console(stderr=True)
+
+def format_code(code:str, title:str, language:str='yaml', color:str='green') -> Panel:
+    "Make a rich Panel for code (default language is YAML), with title and content"
+    colored_title = f"[bold {color}]{title}[/bold {color}]"
+    return Panel(
+        Syntax(code, language, theme="monokai", line_numbers=True),
+        title=colored_title
+    )
+
+# -------------------------
+# Key-value parsing
+# -------------------------
+
+def parse_var(s):
+    """
+    Parse a key, value pair, separated by '='
+    That's the reverse of ShellArgs.
+
+    On the command line (argparse) a declaration will typically look like:
+        foo=hello
+    or
+        foo="hello world"
+    """
+    items = s.split('=')
+    key = items[0].strip() # we remove blanks around keys, as is logical
+    if len(items) > 1:
+        # rejoin the rest:
+        value = '='.join(items[1:])
+    else:
+        raise ValueError(f"Cannot interpret key-value pair (space between = and value?): {s}")
+    return (key, value)
+
+
+def parse_vars(items):
+    """
+    Parse a series of key-value pairs and return a dictionary
+    """
+    d = {}
+
+    if items:
+        for item in items:
+            key, value = parse_var(item)
+            d[key] = value
+    return d
+
+
+
+# -------------------------
+# Main function
+# -------------------------
 
 def main():
     parser = argparse.ArgumentParser(
         description="YAML Preprocessor: modules, parameters, env(), and conditional blocks"
     )
     parser.add_argument("file", help="Path to the YAML config file")
+
+    HELP = """
+            Arguments to be passed as variables to the pre-processor's environment.
+            Set a number of key-value pairs
+            (do not put spaces before or after the = sign).
+            If a value contains spaces, you should define "
+            it with double quotes:
+            'foo="this is a sentence". Note that
+            meaningful literals are automatically converted to scalars, sequences or maps,
+            unless the value
+            passed is surrounded by quotes (e.g. `--set a="'5'"`).
+    """
+    parser.add_argument("--set",
+                        metavar="KEY=VALUE",
+                        nargs='+',
+                        help=HELP)
     parser.add_argument("-o", "--output", help="Write rendered output to file")
-    parser.add_argument("--show-raw", action="store_true", help="Show original YAML before processing")
+    parser.add_argument("-i", "--initial", action="store_true", help="Show original YAML before processing")
+    parser.add_argument("-d", "--debug", action="store_true", 
+                        help="Give debug information in case of error")
     parser.add_argument(
         "-f", "--format",
         choices=["yaml", "json", "hjson", "python"],
@@ -36,27 +108,34 @@ def main():
     )
     args = parser.parse_args()
 
-    yamlpp = load_yaml(args.file)
-    
-    if args.show_raw:
-        console.print(
-            Panel(
-                Syntax(yamlpp, "yaml", theme="monokai", line_numbers=True),
-                title="[bold magenta]Original YAML[/bold magenta]"
-            )
-        )
 
     try:
-        interpreter = Interpreter(yamlpp)
+        # Read the key/value arguments to be passed
+        variables = parse_vars(args.set)
+        
+        # load YAMLpp
+        interpreter = Interpreter(args.file)
+
+        # update the environment with the passed variables
+        interpreter.set_context(variables)
+        if len(variables):
+            output = interpreter.to_yaml(interpreter.context)
+            err_console.print(format_code(output, title='Initial context'))
+        
+        # Show raw
+        if args.initial:
+            err_console.print(format_code(interpreter.yamlpp, title="Original YAML", color="magenta"))
+        # then render:
         tree = interpreter.render_tree()
     except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        traceback.print_exc()   # print on stderr
+        err_console.print(f"[bold red]Error:[/bold red] {e}")
+        if args.debug:
+            traceback.print_exc()   # print on stderr
         raise SystemExit(1)
 
     # Format conversion
     if args.format == "yaml":
-        rendered = yaml.dump(tree, sort_keys=False)
+        rendered = interpreter.yaml
         syntax_lang = "yaml"
     elif args.format == "json":
         rendered = json.dumps(tree, indent=2)
@@ -69,14 +148,16 @@ def main():
         syntax_lang = "python"
 
     # Pretty print if interactive
-    syntax = Syntax(rendered, syntax_lang, theme="monokai", line_numbers=True)
     if sys.stdout.isatty():
-        console.print(Panel(syntax, title=f"[bold green]Rendered {args.format.upper()}[/bold green]"))
+        if args.output:
+            with open(args.output, "w") as f:
+                f.write(rendered)
+            err_console.print(f"[bold yellow]Written to {args.output}[/bold yellow]")
+        else:
+            console.print(format_code(rendered, 
+                                        title=f"Rendered {args.format.upper()}",
+                                       language=syntax_lang))
     else:
+        # piped into an output file:
         print(rendered)
 
-    # Write to file if requested
-    if args.output:
-        with open(args.output, "w") as f:
-            f.write(rendered)
-        console.print(f"[bold yellow]Written to {args.output}[/bold yellow]")

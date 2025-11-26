@@ -5,6 +5,7 @@
   users: [alice, bob, charlie, michael]
 
 server:
+  description: "Environment: {{ env }}"
   host: "{{ host }}"
   .switch:
     .expr: "{{ env }}"
