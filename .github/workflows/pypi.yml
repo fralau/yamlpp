@@ -1,8 +1,10 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [published]   # only run when a release is published
+  push:
+    tags:
+      - '*'
+
 
 jobs:
   build:
