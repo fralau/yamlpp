@@ -1,7 +1,7 @@
 [project]
-name = "yamlpp"
-version = "0.2.0"
-description = "YAML Preprocessor"
+name = "yamlpp-lang"
+version = "0.2.1"
+description = "YAMLpp: a macro language for dynamic YAML preprocessing"
 readme = "README.md"
 authors = [{ name = "Laurent" }]
 requires-python = ">=3.11"
@@ -25,5 +25,9 @@ where = ["."]
 [tool.uv]
 dev-dependencies = [
     "pytest>=9.0.1",
+    "toml-cli>=0.5.0",
 ]
-include = ["test/source/*.yaml"]
+
+[tool.setuptools.package-data]
+"yamlpp" = ["test/source/*"]
+
