@@ -98,10 +98,10 @@ print(i.yaml)
 | **`.foreach`** | Iterate over values with a loop body. | .context:<br>  items: [1,2]<br>.foreach:<br>  .values: [x, items]<br>  .do:<br>    - val: "{{ x }}" |
 | **`.switch`** | Branch to a different node based on an expression and cases. | .switch:<br>  .expr: "{{ color }}"<br>  .cases:<br>    red: {msg: "Stop"}<br>  .default: {msg: "?"} |
 | **`.if`** | Conditional node creation with `then` and `else`. | .if:<br>  .cond: "{{ x>0 }}"<br>  .then: {res: "Pos"}<br>  .else: {res: "Neg"} |
-| **`.import`** | Import and preprocess another YAMLpp (or YAML) file. | .import: "other.yaml" |
+| **`.insert`** | Insert and preprocess another YAMLpp (or YAML) file. | .import: "other.yaml" |
 | **`.function`** | Define a reusable block with arguments and a body. | .function:<br>  .name: "greet"<br>  .args: ["n"]<br>  .do:<br>    - msg: "Hi {{ n }}" |
 | **`.call`** | Invoke a previously defined function with arguments. | .call:<br>  .name: "greet"<br>  .args: ["Bob"] |
-| **`.module`** | Import a Python module exposing functions, filters, and variables. | .module: "module.py" |
+| **`.import`** | Import a Python module exposing functions, filters, and variables. | .module: "module.py" |
 | **`.export`** | Export a portion of the tree into an external file. | .export:<br>  .filename: "out.yaml"<br>  .do:<br>    - foo: "bar" |
 
 

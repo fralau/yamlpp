@@ -4,6 +4,7 @@ of yamlpp
 
 See .util.decorators()
 """
+import os
 from dataclasses import dataclass, field
 import importlib.util
 
@@ -36,8 +37,12 @@ class ModuleEnvironment:
 # Module loading and stack
 # --------------------------
 
-def load_module(path: str):
-    spec = importlib.util.spec_from_file_location("yamlpp_dynamic_module", path)
+def load_module(pathname: str):
+    if not os.path.isfile(pathname):
+        raise FileNotFoundError(f"Module file '{pathname}' is not found.")
+    spec = importlib.util.spec_from_file_location("yamlpp_dynamic_module", pathname)
+    if spec is None:
+        raise OSError(f"Module '{pathname}' is not properly formed.")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)  # type: ignore[attr-defined]
     return module

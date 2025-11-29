@@ -1,18 +1,65 @@
 # Language reference
 
-## Definition
+## Definitions
 
-YAMLpp is a language based on YAML, which transforms a tree.
+### General
+
+- **YAMLpp**: A language based on ➙ YAML,
+  which ➙ pre-processes a ➙ tree containing ➙ constructs into a plain YAML tree.
+
+- **YAML™**: A data serialization language used in modern applications, mainly
+  for complex, nested configuration files and as a foundation for domain-specific languages (see [Official definition](https://yaml.org/spec/))
+
+- **Pre-process**: To transform high-level data into a plainer form that will be processed. 
+
+### YAML
+
+- **Tree**: In YAML, a structure made of a node that can point to one or more nodes, and so on.
+
+- **Node**: In YAML, a fundamental unit of data; it can be a ➙ scalar, ➙ sequence or ➙ mapping.
+  In YAMLpp, it can also be an ➙ expression.
+
+- **Scalar**: in YAML, a "leaf" in a YAML tree: it can be a numeric value, a string, or a boolean.
+
+- **Sequence**: In YAML, an ordered collection of objects (➙ a list in Python).
+
+- **Mapping**: In YAML, an ordered collection of ➙ key, ➙ value pairs (➙ a dictionary in Python).
+
+- **Key**: In YAML, a string that identifies a ➙ value in a map.
+
+- **Value**: In YAML, a ➙ node associated to a ➙ key.
+
+### YAMLpp
+
+- **Construct**: An instruction of YAMLpp ➙ pre-processing instructions that generates
+  one or more YAML ➙ nodes. <br>
+  All constructs are valid YAML.<br>
+  Each construct has a name starting with a dot (`.`) and is presented as a ➙ block. <br>
+  It is called a construct because it _constructs_ (builds) one or more nodes.
+
+
+- **block** (YAMLpp) A piece of YAML code containing a ➙ sequence or ➙ mapping, with the key on the first line, and the content (node) indented in the following lines. 
+  
+
+- **Expression**: (YAMLpp) A ➙ value string containing a ➙ Jinja expression that returns a node. 
+
+- **Expand**: (YAMLpp) To evaluate a ➙ Jinja expression and return a ➙ node.
+
+- **Jinja**: The template engine that is used to calculate ➙ values in YAMLpp (see [documentation](https://jinja.palletsprojects.com/)).
+
+- **module**: (YAMLpp) An imported piece of Python code (file or package) that provides variables, functions and [filters](https://jinja.palletsprojects.com/en/stable/templates/#filters) to the ➙ Jinja environment.
+
+
 
 ## General principles
 
 1. All language constructs are expressed as valid YAML keys, prefixed with the symbol **`.`**.
 They "run, transform the tree and disappear".
 1. All other keys in the source file are plain YAML.
-2. Values can be any YAML valid value. 
-3. They can also be a string containing a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
-   If the result string is a valid Python literal (a scalar, or a list or dictionary), then YAMLpp will convert it.
-4. The output is a YAML tree where all YAMLpp constructs have disappeared.
+2. A value can be any YAML valid value. 
+3. It can also be a string containing a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
+   If the result string is a valid Python literal (a scalar, or a list or dictionary), then YAMLpp will convert it into a node.
+4. The final output is a YAML tree where all YAMLpp constructs have disappeared.
 
 !!!Tip "YAMLpp obeys the rules of YAML syntax"
     - It provides declarative constructs without breaking YAML syntax. 
@@ -23,11 +70,13 @@ They "run, transform the tree and disappear".
 Each construct is defined below with its purpose and an example.
 
 ### `.context`
-**Definition**: Defines a local scope of variables for a block.
+**Definition**: A mapping that defines a local scope of variables.
 
 You can define a `.context` block at any node of the tree.
-The variables defined are valid for all the siblings and the descendents
-(but are not accessible in part of the tree that are higher than this block.)
+
+!!! Warning "Scope of the definitions"
+    The variables defined have a **scope**: they are valid for all the sibling nodes and their descendents
+    (but are not accessible in any part of the tree that is higher than the `.context` block.)
 
 **Example**:
 ```yaml
@@ -45,8 +94,9 @@ message: "Hello, Alice!"
 
 
 ### `.do`
-**Definition**: Executes a sequence of instructions in order.
-You could also generate a map (dictionary) instead of a sequence (list).
+**Definition**: Execute a sequence of node creations, in order. 
+
+
 
 **Example**:
 ```yaml
@@ -63,6 +113,18 @@ You could also generate a map (dictionary) instead of a sequence (list).
 ```
 
 
+!!! Tip "Usage"
+    The `.do` construct is **necessary** to introduce a sequence of constructs within a map.
+
+    ```yaml
+    servers:
+      foo: ...
+      bar: ...
+      baz: ...
+      .do:
+        # a series of instructions to create more key, value pairs
+        - ...
+    ```
 
 ### `.foreach`
 **Definition**: Iterates over values with a loop body.
@@ -88,7 +150,7 @@ You could also generate a map (dictionary) instead of a sequence (list).
 
 
 ### `.switch`
-**Definition**: Branches to a different YAML node, based on an expression and cases.  
+**Definition**: Branch to create a different YAML node, based on an expression and cases.  
 **Example**:
 ```yaml
 .switch:
@@ -109,7 +171,7 @@ meaning: "Go"
 
 
 ### `.if`
-**Definition**: Creates a YAML node, according to condition, with then and else.  
+**Definition**: Create a YAML node, according to condition, with then and else.  
 **Example**:
 ```yaml
 .if:
@@ -126,13 +188,13 @@ result: "Large"
 
 
 
-### `.import`
-**Definition**: Imports and preprocesses another YAMLpp (or YAML) file.  
+### `.insert`
+**Definition**: Insert and preprocesses another YAMLpp (or YAML) file, at this place in the tree.  
 **Example**:
 ```yaml
-.import: "other.yaml"
+.insert: "other.yaml"
 ```
-This loads and expands the contents of `other.yaml` into the current document.
+This loads, inserts, and expands the contents of `other.yaml` into the current document.
 
 
 
@@ -141,7 +203,7 @@ This loads and expands the contents of `other.yaml` into the current document.
 
 
 ### `.function`
-**Definition**: Defines a reusable function with arguments and a body. Arguments are positional.
+**Definition**: Define a reusable function with arguments and a body. Arguments are positional.
 
 **Caution**: These functions are not available "as-is" inside of Jinja expressions.
 
@@ -157,7 +219,7 @@ This loads and expands the contents of `other.yaml` into the current document.
 
 
 ### `.call`
-**Definition**: Invokes a previously defined function with arguments.  
+**Definition**: Invoke a previously defined function with arguments.  
 **Example**:
 ```yaml
 .call:
@@ -169,12 +231,12 @@ This loads and expands the contents of `other.yaml` into the current document.
 message: "Hello Alice!"
 ```
 
-### `.module`
-**Definition**: Imports a Python module, exposing functions and filters to the Jinja expressions.
+### `.import`
+**Definition**: Import a Python module, exposing functions and filters to the Jinja expressions.
   
 **Example**:
 ```yaml
-.module: "module.py"
+.import: "module.py"
 ```
 
 ```python
@@ -199,7 +261,7 @@ def define_env(env: ModuleEnvironment):
 This makes variables and filters from `module.py` available in Jinja2 expressions.
 
 ### `.export`
-**Definition**: Exports the current portion of the tree into an external file  
+**Definition**: Export the current portion of the tree into an external file  
 **Example**:
 ```yaml
 .export:

@@ -186,7 +186,7 @@ class Interpreter:
     
     @property
     def source_dir(self) -> str:
-        "The import directory"
+        "The source directory (where all YAML and other files are located)"
         return self._source_dir
 
     # -------------------------
@@ -363,10 +363,10 @@ class Interpreter:
                     r = self.handle_switch(entry)
                 elif key == ".if":
                     r = self.handle_if(entry)
+                elif key == ".insert":
+                    r = self.handle_insert(entry)
                 elif key == ".import":
                     r = self.handle_import(entry)
-                elif key == ".module":
-                    r = self.handle_module(entry)
                 elif key == ".function":
                     r = self.handle_function(entry)
                 elif key == ".call":
@@ -490,9 +490,9 @@ class Interpreter:
 
 
 
-    def handle_import(self, entry:MappingEntry) -> Node:
+    def handle_insert(self, entry:MappingEntry) -> Node:
         """
-        Import of an external file
+        Insert of an external file
         """
         filename = self.evaluate_expression(entry.value)
         try:
@@ -503,7 +503,7 @@ class Interpreter:
         _, data = load_yaml(full_filename)
         return self.process_node(data)
     
-    def handle_module(self, entry:MappingEntry) -> None:
+    def handle_import(self, entry:MappingEntry) -> None:
         """
         Import a Python module, with variables (function) and filters.
         The import is scoped.
