@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import ast
 from typing import Any
+import collections
 from io import StringIO
 import json
 
@@ -13,6 +14,8 @@ import json
 from ruamel.yaml.error import YAMLError
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.scalarstring import ScalarString
+
 from jsonschema import validate, Draft7Validator
 from rich.console import Console
 from rich.syntax import Syntax
@@ -25,7 +28,7 @@ from .error import YAMLValidationError, YAMLppValidationError, GeneralYAMLppErro
 CURRENT_DIR = Path(__file__).parent 
 console = Console()
 
-
+FILE_FORMATS = ['yaml', 'json', 'toml', 'python']
 # -------------------------
 # OS
 # -------------------------
@@ -144,38 +147,62 @@ def print_yaml(yaml_text: str, filename: str | Path | None = None):
 # -------------------------
 
 def to_yaml(node) -> str:
-    "Translate a tree into a YAML string"
+    """
+    Translate a tree into a YAML string.
+
+    It's the pure Ruamel function.
+    """
     buff = StringIO()
     yaml_rt.dump(node, buff)
     return buff.getvalue()
 
 
-def to_plain(obj):
+
+
+def flatten(node):
     """
-    Recursively convert ruamel.yaml CommentedMap/CommentedSeq
-    into plain Python dicts/lists for TOML serialization.
+    Recursively convert a ruamel.yaml round-trip tree ('rt') 
+    into plain dicts, lists, and scalars.
+
+    NOTE: Ruamel produces a tree with additional directed edges (from aliases to anchors). What you get is a directed graph. YAMLpp "does nothing" with anchors and aliases. It just leaves them where they are. But when you export to other formats than YAML, you need to resolve them.
+
+    This function ensures that YAML anchors (&...), aliases(*...),
+    and Ruamel-specific wrappers are removed.
+
+    That's the correct way to make sure that the tree can be exported
+    to a koine for other formats.
     """
-    if isinstance(obj, dict):
-        return {str(k): to_plain(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [to_plain(v) for v in obj]
+    if isinstance(node, ScalarString):
+        # unwrap ruamel scalar wrappers (e.g. DoubleQuotedScalarString)
+        return str(node)
+    elif isinstance(node, (str, int, float, bool)) or node is None:
+        return node
+    elif isinstance(node, collections.abc.Mapping):
+        return {str(k): flatten(v) for k, v in node.items()}
+    elif isinstance(node, collections.abc.Sequence):
+        assert not (isinstance(node, str))
+        return [flatten(v) for v in node]
     else:
-        return obj
+        # fallback: try to coerce to string
+        return str(node)
 
 
-def to_toml(ruamel_tree):
+
+
+def to_toml(tree) -> str:
     """
     Convert a ruamel.yaml tree into a TOML string.
     """
-    plain = to_plain(ruamel_tree)
+    plain = flatten(tree)
     return tomlkit.dumps(plain)
 
 
-def to_json(ruamel_tree) -> str:
+def to_json(tree) -> str:
     """
     Convert a ruamel.yaml tree into a TOML string.
     """
-    s = json.dumps(ruamel_tree, indent=2)
+    plain = flatten(tree)
+    s = json.dumps(plain, indent=2)
     json.loads(s)
     return s
 
@@ -183,8 +210,59 @@ def to_python(tree):
     """
     Convert a ruamel.yaml tree into a TOML string.
     """
-    return pprint.pformat(to_plain(tree), indent=2, width=80)
+    plain = flatten(tree)
+    # return pprint.pformat(plain, indent=2, width=80)
+    return str(plain)
 
+CONV_FORMATS = {
+    'yaml'   : to_yaml,
+    'json'   : to_json,
+    'python' : to_python,
+    'toml'   : to_toml
+}
+
+def serialize(tree, format:str='yaml') -> str:
+    """
+    General serialization function with format
+    """
+    if format:
+        format = format.lower()
+    else: 
+        format = 'yaml'
+    func = CONV_FORMATS.get(format)
+    if func is None:
+        return ValueError(f"Unsupported format {format}")
+    return func(tree)
+
+def deserialize(text: str, format: str='yaml', *args, **kwargs):
+    """
+    Parse text back into Python objects depending on format.
+    Supported: yaml, json, toml, python
+    Extra args/kwargs are passed to the backend parser.
+
+    YAML: by default the deserialization is 'rt' (round-trip);
+    if you want to change it (to strip comments, etc.), use 'safe'.
+    """
+    DEFAULT_YAML = 'rt'
+    if format:
+        format = format.lower()
+    else: 
+        format = 'yaml'
+    if format == "yaml":
+        if args is None and kwargs is None:
+            return parse_yaml(text)
+        else:
+            typ = kwargs.pop('typ', DEFAULT_YAML)
+            y = YAML(typ=typ)
+            return y.load(text, *args)
+    elif format == "json":
+        return json.loads(text, *args, **kwargs)
+    elif format == "toml":
+        return tomlkit.loads(text, *args, **kwargs)
+    elif format == "python":
+        return ast.literal_eval(text)
+    else:
+        raise ValueError(f"Unsupported format: {format}")
 
 # -------------------------
 # YAMLpp Schema Validation

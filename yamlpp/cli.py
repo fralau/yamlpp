@@ -3,7 +3,6 @@ The terminal client
 """
 import sys
 import traceback
-import pprint
 
 import argparse
 
@@ -15,8 +14,7 @@ from rich.syntax import Syntax
 
 
 from .core import Interpreter
-from .util import to_yaml
-
+from .util import serialize
 
 # -------------------------
 # General parameters
@@ -124,14 +122,14 @@ def main():
         # update the environment with the passed variables
         interpreter.set_context(variables)
         if len(variables):
-            output = to_yaml(interpreter.context)
+            output = serialize(interpreter.context)
             err_console.print(format_code(output, title='Initial context'))
         
         # Show raw
         if args.initial:
             err_console.print(format_code(interpreter.yamlpp, title="Original YAML", color="magenta"))
         # then render:
-        tree = interpreter.render_tree()
+        interpreter.render_tree()
     except Exception as e:
         err_console.print(f"[bold red]Error:[/bold red] {e}")
         if args.debug:
@@ -142,14 +140,7 @@ def main():
     # -------------------
     # Output
     # -------------------
-    if args.format == "yaml":
-        rendered = interpreter.yaml
-    elif args.format == "json":
-        rendered = interpreter.json
-    elif args.format == "python":
-        rendered = interpreter.repr
-    elif args.format == "toml":
-        rendered = interpreter.toml
+    rendered = interpreter.dumps(format=args.format)
 
     if args.output:
         with open(args.output, "w") as f:

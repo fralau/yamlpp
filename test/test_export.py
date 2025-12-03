@@ -4,9 +4,11 @@ Test .export construct
 import io
 from pathlib import Path
 
+import pytest
+
 from yamlpp import Interpreter
 from yamlpp.error import YAMLppError, YAMLValidationError
-from yamlpp.util import print_yaml, load_yaml
+from yamlpp.util import print_yaml, deserialize, FILE_FORMATS
 
 CURRENT_DIR = Path(__file__).parent 
 EXPORT = "_export" 
@@ -54,3 +56,29 @@ def test_export_0():
     tree.accounts[2].name = 'charlie'
     # this is pure YAML:
     assert i2.yamlpp == i2.yaml, "YAML produced should be identical to YAMLpp source"
+
+
+
+@pytest.mark.parametrize("fmt", FILE_FORMATS)
+def test_handle_export_all_formats(tmp_path:str, fmt:str):
+    "Arrange: create interpreter with tmp_path as source_dir"
+    interpreter = Interpreter(source_dir=tmp_path)
+
+    entry = {
+        ".filename": f"export.{fmt}",
+        ".do": {"server": {"foo": "bar", "baz": 5}},
+        ".format": fmt,
+    }
+    # Act: call the real handle_export
+    interpreter.handle_export(entry)
+
+    # Assert: file exists
+    full_path = tmp_path / f"export.{fmt}"
+    assert full_path.exists(), f"Export file for {fmt} should be created"
+
+    # Assert: round-trip content with yamlpp
+    content = full_path.read_text(encoding="utf-8")
+    print("Read-back:\n---", content)
+    parsed = deserialize(content, format=fmt)
+    assert parsed["server"]["foo"] == "bar"
+    assert parsed["server"]["baz"] == 5

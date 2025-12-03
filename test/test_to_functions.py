@@ -9,7 +9,7 @@ import ruamel.yaml
 from io import StringIO
 
 # --- import your functions ---
-from yamlpp.util import to_yaml, to_plain, to_toml, to_json
+from yamlpp.util import to_yaml, to_toml, to_json, flatten
 
 yaml = ruamel.yaml.YAML()
 
@@ -39,25 +39,25 @@ def nested_tree():
     """)
 
 # -------------------------
-# Tests for to_plain
+# Tests for flatten
 # -------------------------
-def test_to_plain_dict(sample_tree):
-    # Ensure to_plain converts a CommentedMap into a plain dict
-    plain = to_plain(sample_tree)
+def test_flatten_dict(sample_tree):
+    # Ensure flatten converts a CommentedMap into a plain dict
+    plain = flatten(sample_tree)
     assert isinstance(plain, dict)
     assert plain["app"]["name"] == "myservice"
     assert plain["app"]["features"] == ["logging", "metrics"]
 
-def test_to_plain_list():
-    # Ensure to_plain converts a CommentedSeq into a plain list
+def test_flatten_list():
+    # Ensure flatten converts a CommentedSeq into a plain list
     data = yaml.load("[1, 2, 3]")
-    plain = to_plain(data)
+    plain = flatten(data)
     assert plain == [1, 2, 3]
 
-def test_to_plain_scalar():
+def test_flatten_scalar():
     # Ensure scalars (like integers) are returned unchanged
     data = yaml.load("42")
-    plain = to_plain(data)
+    plain = flatten(data)
     assert plain == 42
 
 # -------------------------

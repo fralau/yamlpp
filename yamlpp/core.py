@@ -16,7 +16,7 @@ from pprint import pprint
 
 from .stack import Stack
 from .util import load_yaml, validate_node, parse_yaml, safe_path
-from .util import to_yaml, to_toml, to_json, to_python
+from .util import to_yaml, serialize
 from .util import CommentedMap, CommentedSeq # Patched versions
 from .error import YAMLppError, Error
 from .import_modules import get_exports
@@ -108,6 +108,10 @@ class Interpreter:
 
         if filename:
             self.load(filename)
+        else:
+            # create a Jinja environment nothing in it
+            self._source_dir = source_dir
+            self._reset_environment()
         
     @property
     def is_dirty(self) -> bool:
@@ -466,8 +470,8 @@ class Interpreter:
 
         block = {
             ".cond": "...",
-            ".then": [...],
-            ".else": [...]
+            ".then": [...],   
+            ".else": [...]. # optional
         }
         """
         r = self.evaluate_expression(entry['.cond'])
@@ -571,14 +575,16 @@ class Interpreter:
         Exports the subtree into an external file
 
         block = {
-            ".filename": "...",
+            ".filename": ...,
+            ".format": ... # optional
             ".do": {...} or []
         }
         """
         filename = self.evaluate_expression(entry['.filename'])
         full_filename = os.path.join(self.source_dir, filename)
+        format = entry.get('.format') # get the export format, if there 
         tree = self.process_node(entry['.do'])
-        yaml_output = to_yaml(tree)
+        yaml_output = serialize(tree, format)
         with open(full_filename, 'w') as f:
             f.write(yaml_output)
 
@@ -590,26 +596,14 @@ class Interpreter:
     def yaml(self) -> str:
         """
         Return the final yaml output
+        (it supports a round trip)
         """
         tree = self.render_tree()
         return to_yaml(tree)
 
-
-    @property
-    def json(self) -> str:
-        "Return the tree as JSON"
-        tree = self.render_tree()
-        return to_json(tree)
     
-    @property
-    def toml(self) -> str:
-        "Return the tree as TOML"
-        tree = self.render_tree()
-        return to_toml(tree)
     
-    @property
-    def repr(self) -> str: 
-        "Return the tree as Python repr-style"
+    def dumps(self, format:str) -> str:
+        "Serialize the output into one of the supported serialization formats"
         tree = self.render_tree()
-        return to_python(tree)
-    
+        return serialize(tree, format)

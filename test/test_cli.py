@@ -1,22 +1,29 @@
 """
 Test the client's behavior
+
+With round-trips.
 """
 
 import subprocess
 import sys
 import tempfile
 import pathlib
+import ast
 
 
 import pytest
 import json
+import tomlkit
 
 CLI = ["yamlpp", '-d']
 
-JSON_FILE = """
+PERSONS = ['Joe', 'Annie', 'Hamilton']
+
+JSON_FILE = f"""
 server:
     foo: bar
-    users: [Joe, Annie, Hamilton]
+    baz: 5
+    users: [{', '.join(PERSONS)}]
 """
 
 def snip(s:str, length:str=20):
@@ -39,7 +46,8 @@ def run_cli(args, input_file=None):
         cmd.append(str(input_file))
     result = subprocess.run(cmd, capture_output=True, text=True)
     print(f"Running: {[snip(item) for item in cmd]}")
-    print("Result:\n", result.stdout)
+    print("Result:\n[---\n", result.stdout)
+    print("---]")
     assert result.stdout + result.stderr, f"Both stdout and stderr are empty: {cmd}"
     if result.returncode != 0:
         raise AssertionError(
@@ -60,6 +68,17 @@ def make_temp_yaml(content: str):
     assert pathlib.Path(tmp.name).is_file(), f"Failed to create {tmp.name}!"
     return pathlib.Path(tmp.name)
 
+def check_round_trip(tree):
+    """
+    Check that the tree is round-trip
+    """
+    server = tree['server']
+    assert isinstance(server, dict), f"Failed to serialize map into a dict (returned a {type(users).__name__})"
+    assert server['foo'] == 'bar', "Failed to serialize map "
+    assert server['baz'] == 5, "Failed to serialize int (instead of string) "
+    users = server['users']
+    assert isinstance(users, list), f"Failed to serialize sub-sequence into a list (returned a {type(users).__name__})"
+    assert users == PERSONS, "Failed to serialize sub-sequence "
 
 # ---------------------------
 # Basic tests
@@ -120,9 +139,8 @@ def test_json_output(tmp_path):
     result = run_cli(["-f", "json"], yaml_file)
     assert result.returncode == 0
     # check that it's valid json:
-    json.loads(result.stdout)
-    # JSON output should contain a quoted key and value
-    assert '"foo": "bar"' in result.stdout
+    tree = json.loads(result.stdout)
+    check_round_trip(tree)
 
 def test_toml_output(tmp_path):
     """Check that YAML input is correctly rendered as TOML when using -f toml."""
@@ -131,7 +149,8 @@ def test_toml_output(tmp_path):
     result = run_cli(["-f", "toml"], yaml_file)
     assert result.returncode == 0
     # TOML output should look like key = "value"
-    assert 'foo = "bar"' in result.stdout
+    tree = tomlkit.loads(result.stdout)
+    check_round_trip(tree)
 
 def test_python_output(tmp_path):
     """Check that YAML input is correctly rendered as Python dict when using -f python."""
@@ -140,7 +159,9 @@ def test_python_output(tmp_path):
     result = run_cli(["-f", "python"], yaml_file)
     print(result.stdout, "\n")
     assert result.returncode == 0
-    # Python output should look like {'foo': 'bar'}
-    pattern = "'foo': 'bar'" 
-    assert pattern in result.stdout, f"Can't find '{pattern}' in \n{result.stdout}"
+    try:
+        tree = ast.literal_eval(result.stdout)
+    except ValueError as e:
+        raise ValueError(f"Cannot read Python expr: {e} \n{result.stdout}")
+    check_round_trip(tree)
 
