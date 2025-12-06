@@ -73,7 +73,7 @@ def check_round_trip(tree):
     Check that the tree is round-trip
     """
     server = tree['server']
-    assert isinstance(server, dict), f"Failed to serialize map into a dict (returned a {type(users).__name__})"
+    assert isinstance(server, dict), f"Failed to serialize map into a dict (returned a {type(server).__name__})"
     assert server['foo'] == 'bar', "Failed to serialize map "
     assert server['baz'] == 5, "Failed to serialize int (instead of string) "
     users = server['users']
