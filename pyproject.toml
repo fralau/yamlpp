@@ -1,6 +1,6 @@
 [project]
 name = "yamlpp-lang"
-version = "0.2.3"
+version = "0.2.4"
 description = "YAMLpp: a macro language for dynamic YAML preprocessing"
 readme = "README.md"
 authors = [{ name = "Laurent" }]
