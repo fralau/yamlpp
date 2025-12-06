@@ -31,5 +31,5 @@ dev-dependencies = [
 ]
 
 [tool.setuptools.package-data]
-"yamlpp" = ["test/source/*"]
+"yamlpp" = ["yamlpp/*.yaml", "test/source/*"]
 
