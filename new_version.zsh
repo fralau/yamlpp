@@ -35,6 +35,7 @@ warn "Creating git tag $TAG from $CONFIG_FILE"
 git tag -a "$TAG" -m "Release version $VERSION"
 
 warn "Pushing..."
+git push origin main
 git push origin "$TAG"
 warn "Done!"
 

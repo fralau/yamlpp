@@ -1,6 +1,6 @@
 [project]
 name = "yamlpp-lang"
-version = "0.2.4"
+version = "0.2.5"
 description = "YAMLpp: a macro language for dynamic YAML preprocessing"
 readme = "README.md"
 authors = [{ name = "Laurent" }]
@@ -9,6 +9,7 @@ dependencies = [
     "hjson>=3.1.0",
     "jinja2>=3.1.6",
     "jsonschema>=4.25.1",
+    "keyring>=25.7.0",
     "rich>=14.2.0",
     "ruamel-yaml>=0.18.16",
     "super-collections>=0.6.2",

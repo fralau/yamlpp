@@ -21,7 +21,7 @@ def test_err_0():
     """
     FILENAME = SOURCE_DIR / 'test1.yaml'
     i = Interpreter()
-    i.load(FILENAME)
+    i.load(FILENAME, render=False) # do not render (modification)
     
     # rename key
     switch = i.initial_tree.server['.switch']

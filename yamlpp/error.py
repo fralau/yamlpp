@@ -13,6 +13,8 @@ class GeneralYAMLppError(Exception):
     def __init__(self, line_no:int, err_type: str, message: str):
         self.line_no = line_no
         self.err_type = err_type
+        if not isinstance(message, str):
+            message = str(message)
         self.message = message
         super().__init__(self.__str__())
 
@@ -124,6 +126,7 @@ class Error(str, Enum):
     INDEX = "IndexNotFound"
     ARGUMENTS = "ArgumentMismatch"
     FILE = "FileError"
+    EXPRESSION = "ExpressionError"
     # add more categories as needed
 
 class YAMLppError(GeneralYAMLppError):
@@ -132,12 +135,24 @@ class YAMLppError(GeneralYAMLppError):
     Extracts line number and line text directly from the node.
     """
     def __init__(self, node, err_type: Error, message: str):
-        line_no = get_line_number(node)
+        if isinstance(node, (CommentedMap, CommentedSeq)):
+            line_no = get_line_number(node) 
+        else:
+            line_no = 0
         err_type = err_type
         message = message
         super().__init__(line_no, err_type, message)
 
 
+# --------------------------
+# Expression error (to be capture)
+# --------------------------
+class JinjaExpressionError(Exception):
+    "An Expression error that must be caught later, at first opportunity"
+    def __init__(self, expression:str, error:Exception):
+        self.expression = expression
+        self.err_type = type(error).__name__
+        self.error_text = str(error) 
 
-
-
+    def __str__(self):
+        return (f"Expression '{self.expression}'\n{self.err_type}:{self.error_text}")

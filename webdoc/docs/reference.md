@@ -194,7 +194,27 @@ result: "Large"
 ```yaml
 .insert: "other.yaml"
 ```
-This loads, inserts, and expands the contents of `other.yaml` into the current document.
+
+This loads, the contents of `other.yaml` into the current document,
+and inserts it at the place of the .insert statement.
+
+Complete form:
+
+```yaml
+.insert:
+  .filename: "other.yaml"
+  .format:
+  .args: # arguments are by name
+    ...
+
+```
+
+- The file extension (`yaml`, `json`, `toml`...) is optional.
+- The `.format` keyword is optional.
+- The `.args` keyword is used for the additional arguments passed to the format-specific 
+  insert function (by name).
+
+
 
 
 
@@ -277,13 +297,13 @@ normalized, in the sense that
   .do: ...               # the part you wish to export.
 ```
 
-The exported can be either plain YAML or other or contain YAMLpp constructs
-(which will be expanded into YAML, before being exported).
+The exported file can be either plain YAML or other format. 
+YAMLpp constructs are expanded into YAML, before being exported.
 
 - The file extension (`yaml`, `json`, `toml`...) is optional.
 - The `.format` keyword is optional.
 - The `.args` keyword is used for the additional arguments passed to the format-specific 
-  export function.
+  export function (by name).
 
 
 === "JSON, TOML and others"
@@ -396,9 +416,9 @@ yamlpp test1.yaml --set env=prod users="[Laurent, Paul]"
 ### Through environment variables
 
 Another way to change dynamically the initial conditions that govern a YAMLpp program,
-is to use the environment variables of the OS, through the `@getenv()` function.
+is to use the environment variables of the OS, through the `getenv()` function.
 
-It be used in _any_ part of the YAMLpp tree.
+This statement may be used in any part of the YAMLpp tree.
 
 ```yaml
 server:
@@ -422,7 +442,7 @@ server:
   that contain a Jinja expression **must** be quoted: 
     - ❌ Incorrect: `message: Hello, {{ name }}!`
     - ✅ Correct: `message:"Hello, {{ name }}!"`
-3. **Missing Functions or Modules**: Happens if a referenced function or module is not imported or defined. Verify `.module` imports and `.function` definitions.  
+3. **Missing Functions or Modules**: Occurs if a referenced function or module is not imported or defined. Verify `.module` imports and `.function` definitions.  
 4. **Argument Mismatches**: When calling functions, ensure the number and order of arguments match the `.args` definition.  
 5. **Syntax Errors**: Invalid YAML or incorrect use of YAMLpp directives can cause preprocessing failures. Validate YAML syntax and directive structure.  
 6. **Incorrect Expression Syntax**: Jinja2 expressions must be properly formatted. Check for missing braces, quotes, or invalid operations.  

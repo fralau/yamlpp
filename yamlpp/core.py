@@ -16,9 +16,9 @@ from pprint import pprint
 
 from .stack import Stack
 from .util import load_yaml, validate_node, parse_yaml, safe_path
-from .util import to_yaml, serialize, get_format
+from .util import to_yaml, serialize, get_format, deserialize
 from .util import CommentedMap, CommentedSeq # Patched versions (DO NOT CHANGE THIS!)
-from .error import YAMLppError, Error
+from .error import YAMLppError, Error, JinjaExpressionError
 from .import_modules import get_exports
 
 
@@ -35,11 +35,13 @@ Node = Union[BlockNode, ListNode, str, int, float, bool, None]
 KeyOrIndexentry = Tuple[Union[str, int], Node]
 
 # Global functions for Jinja2
+
+import keyring
+
 GLOBAL_CONTEXT = {
-    "getenv": os.getenv
+    "getenv": os.getenv,
+    "get_password": keyring.get_password
 }
-
-
 
 
 class MappingEntry:
@@ -69,7 +71,10 @@ class MappingEntry:
         The value of entry must be either dict (it's an attribute) or list.
         """
         if not isinstance(self.value, (list, dict)):
-            raise YAMLppError(f"Key {self.key} points on a scalar or non-recognized type ({type(self.value).__name__})")
+            # it's probably a scalar
+            return None
+            # raise YAMLppError(self.value, Error.KEY,
+            #             f"Key {self.key} points on a scalar or non-recognized type ({type(self.value).__name__})")
         try:
             return self.value[key]
         except (KeyError, IndexError):
@@ -98,10 +103,22 @@ class Interpreter:
     "The interpreter class that works on the YAMLLpp AST"
 
 
-    def __init__(self, filename:str=None, source_dir:str=None):
-        "Initialize with the YAMLpp source code"
+    def __init__(self, filename:str=None, source_dir:str=None,
+                 functions:dict={}, filters:dict={}):
+        """
+        Initialize with the YAMLpp source code
+
+        Arguments
+        ---------
+        filename: source file from where the YAML source will be read.
+        source_dir: source directory (if different from the filename's directory)
+        functions: a dictionary of functions that will update the GLOBALS.
+        filters: a dictionary of filters that will update the filters
+        """
         self._tree = None
         self._dirty = True
+        self._functions = functions
+        self._filters = filters
         if not source_dir:
             # working directory
             self._source_dir = os.getcwd()
@@ -131,7 +148,10 @@ class Interpreter:
         self._dirty = True
 
 
-    def load(self, source:str, is_text:bool=False, validate:bool=False):
+    def load(self, source:str, 
+             is_text:bool=False, 
+             validate:bool=False,
+             render:bool=True):
         """
         Load a YAMLpp file (by default, source is the filename)
 
@@ -141,6 +161,8 @@ class Interpreter:
         - is_text: set to True, if it is text
         - validate: submit the YAML source to a schema validation
             (effective, but less helpful in case of error)
+        - render: interpret the YAMLpp and generate the YAML (default: yes)
+            Set to False, to opt-out of rendering for modification of the tree or debugging.
         """
         self.dirty()
         if not is_text:
@@ -150,11 +172,19 @@ class Interpreter:
             validate_node(self._initial_tree)
         self._reset_environment()
 
-    def load_text(self, text:str):
+        if render:
+            self.render_tree()
+
+    def load_text(self, text:str, render:bool=True):
         """
         Load text (simplified)
+
+        Arguments:
+        - text: the string
+        - render: interpret the YAMLpp and generate the YAML (default: yes)
+            Set to False, to opt-out of rendering for modification of the tree or debugging.
         """
-        return self.load(text, is_text=True)
+        return self.load(text, is_text=True, render=render)
 
 
 
@@ -167,7 +197,9 @@ class Interpreter:
         env.globals = Stack(env.globals)
         assert isinstance(env.globals, Stack)
         env.globals.push(GLOBAL_CONTEXT)
+        env.globals.update(self._functions)
         env.filters = Stack(env.filters)
+        env.filters.update(self._filters)
         assert isinstance(env.filters, Stack)
 
     # -------------------------
@@ -285,11 +317,16 @@ class Interpreter:
         Evaluate a Jinja2 expression string against the stack.
         If the expr is not a string, converts it.
         """
-        if not isinstance(expr, str):
-            expr = repr(expr)
-        template = self.jinja_env.from_string(expr)
+        if isinstance(expr, str):
+            str_expr = expr
+        else:
+            str_expr = repr(expr)
+        template = self.jinja_env.from_string(str_expr)
         # return template.render(**self.stack)
-        r = template.render()
+        try:
+            r = template.render()
+        except Exception as e:
+            raise JinjaExpressionError(expr, e)
         # print("Evaluate", expr, "->", r, ">", type(r).__name__)
         try:
             # we need to evaluate the expression if possible
@@ -372,7 +409,10 @@ class Interpreter:
                     r = self.handle_export(entry)
                 else:
                     # normal YAML key
-                    r = {key: self.process_node(value)}
+                    try:
+                        r = {key: self.process_node(value)}
+                    except JinjaExpressionError as e:
+                        raise YAMLppError(node, Error.EXPRESSION, str(e))
                 # Decide what to do with the result
                 # Typically, .foreach returns a list
                 if r is None:
@@ -490,14 +530,36 @@ class Interpreter:
     def handle_insert(self, entry:MappingEntry) -> Node:
         """
         Insert of an external file
+
+        In can be either a string (filename), or:
+        
+        block = {
+            ".filename": ...,
+            ".format": ... # optional
+            ".args": { } # the additional arguments (dictionary)
+        }
         """
-        filename = self.evaluate_expression(entry.value)
+        # print(".insert is recognized", entry.key, entry.value)
+        if isinstance(entry.value, str):
+            filename = self.evaluate_expression(entry.value)
+            format = None
+            kwargs = {}
+        
+        else:
+            filename = self.evaluate_expression(entry['.filename'])
+            format = entry.get('.format') # get the export format, if there 
+            kwargs = entry.get('.args') or {} # arguments
+        
         try:
             full_filename = safe_path(self.source_dir, filename)
         except FileNotFoundError as e:
             raise YAMLppError(entry.value, Error.FILE, e)  
-        # full_filename = os.path.join(self.source_dir, filename)
-        _, data = load_yaml(full_filename)
+        actual_format = get_format(filename, format)
+        with open(full_filename, 'r') as f:
+            text = f.read()
+        # read the file
+        data = deserialize(text, actual_format, **kwargs)
+        # _, data = load_yaml(full_filename)
         return self.process_node(data)
     
     def handle_import(self, entry:MappingEntry) -> None:
@@ -584,11 +646,11 @@ class Interpreter:
         filename = self.evaluate_expression(entry['.filename'])
         full_filename = os.path.join(self.source_dir, filename)
         format = entry.get('.format') # get the export format, if there 
-        kwargs = entry.get('.args') # arguments
+        kwargs = entry.get('.args') or {} # arguments
         tree = self.process_node(entry['.do'])
         # work out the actual format, and export
         actual_format = get_format(filename, format)
-        file_output = serialize(tree, actual_format, kwargs)
+        file_output = serialize(tree, actual_format, **kwargs)
         with open(full_filename, 'w') as f:
             f.write(file_output)
 

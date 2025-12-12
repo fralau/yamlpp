@@ -49,7 +49,7 @@ def test_02():
     "Test YAMLpp with modifications"
     FILENAME = SOURCE_DIR / 'test1.yaml'
     i = Interpreter()
-    i.load(FILENAME)
+    i.load(FILENAME, render=False) # suspend rendering
 
     assert i.context is not None, "Context should not be empty"
     i.context.env = 'dev'
@@ -102,7 +102,7 @@ def test_import_02():
     "Test of import"
     FILENAME = SOURCE_DIR / 'test2.yaml'
     i = Interpreter()
-    i.load(FILENAME)
+    i.load(FILENAME, render=False)
     # modify parameter before rendering
     i.context.env = 'prod'
 

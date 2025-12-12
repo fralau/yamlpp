@@ -37,22 +37,29 @@ FILE_FORMATS = ['yaml', 'json', 'toml', 'python']
 # -------------------------
 from pathlib import Path
 
-def safe_path(root: str|Path, pathname: str) -> Path:
+def safe_path(root: str | Path, pathname: str | Path) -> Path:
     """
-    Get a pathname relative to a root, ensure it cannot escape,
-    and verify that it exists.
+    Resolve a pathname relative to a root and:
+    - enforce sandboxing (forbid absolute paths, enforce containment), 
+    - verify existence of file
     """
-    if isinstance(root, str):
-        root = Path(root)
+    root = Path(root).resolve()
+    pathname = Path(pathname)
+
+    # 1. Absolute paths are forbidden
+    if pathname.is_absolute():
+        raise FileNotFoundError(f"Absolute path not allowed: {pathname}")
+
+    # 2. Resolve inside root
     candidate = (root / pathname).resolve()
 
-    # check that candidate is inside root
+    # 3. Enforce containment
     if root not in candidate.parents and candidate != root:
-        raise FileNotFoundError(f"Path {pathname} cannot be higher than {root}")
+        raise FileNotFoundError(f"Path {pathname} escapes root {root}")
 
-    # check that candidate exists
+    # 4. Enforce existence
     if not candidate.exists():
-        raise FileNotFoundError(f"Path {candidate} does not exist")
+        raise FileNotFoundError(f"Path does not exist: {candidate}")
 
     return candidate
 
@@ -320,7 +327,7 @@ CONV_FORMATS = {
     'toml'   : to_toml
 }
 
-def serialize(tree, format:str='yaml', kwargs:dict={}) -> str:
+def serialize(tree, format:str='yaml', **kwargs) -> str:
     """
     General serialization function with format.
 

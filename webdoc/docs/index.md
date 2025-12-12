@@ -54,7 +54,7 @@ The result is pure YAML.
 
 ### Installation
 ```sh
-pip install yamlpp
+pip install yamlpp-lang
 ```
 
 ### Command-line usage
