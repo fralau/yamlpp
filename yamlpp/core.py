@@ -44,6 +44,7 @@ GLOBAL_CONTEXT = {
 }
 
 
+
 class MappingEntry:
     """
     A key value entry
@@ -101,6 +102,17 @@ class MappingEntry:
 # --------------------------
 class Interpreter:
     "The interpreter class that works on the YAMLLpp AST"
+
+    # The list of allowed construct keywords for the Dispatcher
+    # the handlers behave as dunder methods (with same name)
+    # '.load' -> self.handle()
+    #
+    # When you create a new construct:
+    #  - Create the handler
+    #  - Register it in this list
+    CONSTRUCTS = ('.do', '.foreach', '.switch', '.if', '.load', '.import', 
+                  '.function', '.call', '.export')
+
 
 
     def __init__(self, filename:str=None, source_dir:str=None,
@@ -349,7 +361,27 @@ class Interpreter:
         else:
             raise ValueError(f"A parameter block must be a dictionary found: {type(params_block).__name__}")
         
-        return new_scope     
+        return new_scope
+    
+    def _despatch(self, keyword:str, entry:MappingEntry) -> Node:
+        """
+        Despatch the struct to the proper handler (dunder method)
+
+        '.load' -> self.handle_load()
+        """
+        assert keyword in self.CONSTRUCTS, f"Unknown keyword '{keyword}'"
+        
+        # find the handler method:
+        method_name = f"handle_{keyword[1:]}"
+        if hasattr(self, method_name):
+            # call the handler
+             method = getattr(self, method_name)
+        else:
+            raise AttributeError(f"Missing handler for {method_name}!")
+        # run the method and return the result
+        return method(entry)
+        
+
 
     def process_node(self, node: Node) -> Node:
         """
@@ -388,25 +420,17 @@ class Interpreter:
                 if key == ".context":
                     # Do not include
                     r = None
-                elif key == ".do":
-                    r = self.handle_do(entry)
-                elif key == ".foreach":
-                    r = self.handle_foreach(entry)
-                    # print("Returned foreach:",)
-                elif key == ".switch":
-                    r = self.handle_switch(entry)
-                elif key == ".if":
-                    r = self.handle_if(entry)
-                elif key == ".load":
-                    r = self.handle_load(entry)
-                elif key == ".import":
-                    r = self.handle_import(entry)
-                elif key == ".function":
-                    r = self.handle_function(entry)
-                elif key == ".call":
-                    r = self.handle_call(entry)
-                elif key == ".export":
-                    r = self.handle_export(entry)
+                # ------
+                # Replace with a dispatcher:
+                # elif key == ".do":
+                #     r = self.handle_do(entry)
+                # elif key == ".foreach":
+                #     r = self.handle_foreach(entry)
+                #     # print("Returned foreach:",)
+                # ....
+                # ------
+                elif key in self.CONSTRUCTS:
+                    r = self._despatch(key, entry)
                 else:
                     # normal YAML key
                     try:
@@ -454,7 +478,7 @@ class Interpreter:
         """
         Sequence of instructions
         """
-        print(f"*** DO action ***")
+        # print(f"*** DO action ***")
         results: ListNode = []
         for node in entry.value:
             results.append(self.process_node(node))
