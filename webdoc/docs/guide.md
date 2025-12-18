@@ -145,15 +145,18 @@ To simplify make the code more abstract, we use a function.
     - {name: "frontend", image: "myorg/frontend:latest", port: 3000}
 
 # Define a reusable function for a service
-.function service(svc):
-  "{{ svc.name }}":
-    image: "{{ svc.image }}"
-    restart: always
-    ports:
-      - "{{ svc.port }}:{{ svc.port }}"
-    labels:
-      maintainer: "{{ maintainer }}"
-      version: "{{ version }}"
+.function
+  .name: service:
+  .args: [svc]
+  .do:
+    "{{ svc.name }}":
+      image: "{{ svc.image }}"
+      restart: always
+      ports:
+        - "{{ svc.port }}:{{ svc.port }}"
+      labels:
+        maintainer: "{{ maintainer }}"
+        version: "{{ version }}"
 
 version: "3.9"
 

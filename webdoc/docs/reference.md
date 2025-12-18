@@ -61,11 +61,21 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 
 1. All language constructs start with keywords (valid YAML keys, prefixed with the symbol **`.`**).
 They "run, transform the tree and disappear".
-1. All other keys in the source file are plain YAML.
-2. A value can be any YAML valid value. 
-3. It can also be a string containing a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
+1. All other key/values in the source file are plain YAML.
+2. Internally, all values (nodes) are:
+   - **Maps** (dictionaries)
+   - **Sequences** (lists)
+   - **Scalars**: 
+     - integers, 
+     - reals, 
+     - strings,
+     - booleans (`true`, `false`), 
+     - timestamps ([ISO-8601](https://www.cl.cam.ac.uk/~mgk25/iso-time.html)), and
+     - `null` 
+3. A value can be any YAML valid value. 
+4. It can also be a string containing a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
    If the result string is a valid Python literal (a scalar, or a list or dictionary), then YAMLpp will convert it into a node.
-4. The final output is a YAML tree where all YAMLpp constructs have disappeared.
+5. The final output is a YAML tree where all YAMLpp constructs have disappeared.
 
 !!!Tip "YAMLpp obeys the rules of YAML syntax"
     - It provides declarative constructs without breaking YAML syntax. 
@@ -100,8 +110,9 @@ message: "Hello, Alice!"
 
 
 ### `.do`
-**Definition**: Execute a sequence of node creations, in order. 
+**Definition**: Execute a sequence of node creations, in order.
 
+However, if it finds a map, it will process and return it.
 
 
 **Example**:
@@ -119,18 +130,6 @@ message: "Hello, Alice!"
 ```
 
 
-!!! Tip "Usage"
-    The `.do` construct is **necessary** to introduce a sequence of constructs within a map.
-
-    ```yaml
-    servers:
-      foo: ...
-      bar: ...
-      baz: ...
-      .do:
-        # a series of instructions to create more key, value pairs
-        - ...
-    ```
 
 ### `.foreach`
 **Definition**: Iterates over values with a loop body.
@@ -398,12 +397,6 @@ https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine
 
 
 
-**Return:**  
-None.
-
-
-
-
 **Example**
 ```yaml
 def_sql:
@@ -429,9 +422,6 @@ exec_sql:
   .query:  <query-object>  # structure understood by sql_query()
 ```
 
-
-**Return:**  
-None.
 
 
 **Example**
@@ -476,8 +466,8 @@ load_sql:
   .query:  <query-object>  # structure understood by sql_query()
 ```
 
-**Return:**  
-A YAML sequence of mapping nodes, one per row.
+
+
 
 **Example**
 ```yaml
@@ -487,7 +477,8 @@ load_sql:
     text: "SELECT id, name, age FROM users ORDER BY id"
 ```
 
-Might expand into:
+**Output:**
+A YAML sequence of mapping nodes, one per row.
 
 ```yaml
 - id: 1

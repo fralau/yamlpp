@@ -339,31 +339,6 @@ class Interpreter:
     # Walking the tree
     # -------------------------
 
-    def evaluate_expression(self, expr: str|Any) -> Node:
-        """
-        Evaluate an expression
-
-        Evaluate a Jinja2 expression string against the stack.
-        If the expr is not a string, converts it.
-        """
-        if isinstance(expr, str):
-            str_expr = expr
-        else:
-            str_expr = repr(expr)
-        template = self.jinja_env.from_string(str_expr)
-        # return template.render(**self.stack)
-        try:
-            r = template.render()
-        except Exception as e:
-            raise JinjaExpressionError(expr, e)
-        # print("Evaluate", expr, "->", r, ">", type(r).__name__)
-        try:
-            # we need to evaluate the expression if possible
-            return ast.literal_eval(r)
-        except (ValueError, SyntaxError):
-            return r
-
-
     def process_node(self, node: Node) -> Node:
         """
         Process a node in the tree
@@ -452,6 +427,36 @@ class Interpreter:
 
         else:
             return node
+
+
+    def evaluate_expression(self, expr: str) -> Node:
+        """
+        Evaluate a string expression
+
+        Evaluate a Jinja2 expression string against the stack.
+        If the expr is not a string, fail miserably.
+        """
+        if isinstance(expr, str):
+            str_expr = expr
+        else:
+            raise ValueError(f"Value to be evaluated is not a string: '{expr}'")
+
+        if '{' not in str_expr:
+            # optimization (the expression is plain str, not Jinja)
+            return str_expr
+        
+        template = self.jinja_env.from_string(str_expr)
+        # return template.render(**self.stack)
+        try:
+            r = template.render()
+        except Exception as e:
+            raise JinjaExpressionError(expr, e)
+        # print("Evaluate", expr, "->", r, ">", type(r).__name__)
+        try:
+            # we need to evaluate the expression if possible
+            return ast.literal_eval(r)
+        except (ValueError, SyntaxError):
+            return r
 
 
     # -------------------------
@@ -745,7 +750,7 @@ class Interpreter:
         """
         name = self.evaluate_expression(entry['.name'])
         url = self.evaluate_expression(entry['.url'])
-        kwargs = self.evaluate_expression(entry.get('args')) or {}
+        kwargs = self.process_node(entry.get('args')) or {}
         self.stack[name] = sql_create_engine(url, **kwargs)
 
 
