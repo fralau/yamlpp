@@ -16,7 +16,7 @@ from pprint import pprint
 
 from .stack import Stack
 from .util import load_yaml, validate_node, parse_yaml, safe_path
-from .util import to_yaml, serialize, get_format, deserialize, normalize
+from .util import to_yaml, serialize, get_format, deserialize, normalize, collapse_seq
 from .util import CommentedMap, CommentedSeq # Patched versions (DO NOT CHANGE THIS!)
 from .error import YAMLppError, Error, JinjaExpressionError, DispatcherError
 from .import_modules import get_exports
@@ -393,7 +393,10 @@ class Interpreter:
                 else:
                     # normal YAML key
                     try:
-                        r = {key: self.process_node(value)}
+                        # evaluate the result key (could contain a Jinja2 expression)
+                        result_key = self.evaluate_expression(key)
+                        # produce the result
+                        r = {result_key: self.process_node(value)}
                     except JinjaExpressionError as e:
                         raise YAMLppError(node, Error.EXPRESSION, str(e))
                 # Decide what to do with the result
@@ -420,13 +423,36 @@ class Interpreter:
         elif isinstance(node, list):
             # print("List:", node)
             r = [self.process_node(item) for item in node]
+            # Collapse rules:
             r = [item for item in r if item is not None]
             if len(r):
                 return r
+            else:
+                # This is intentional
+                return None
 
 
         else:
             return node
+
+
+    def _despatch(self, keyword:str, entry:MappingEntry) -> Node:
+        """
+        Despatch the struct to the proper handler (dunder method)
+
+        '.load' -> self.handle_load()
+        """
+        assert keyword in self.CONSTRUCTS, f"Unknown keyword '{keyword}'"
+        
+        # find the handler method:
+        method_name = f"handle_{keyword[1:]}"
+        if hasattr(self, method_name):
+            # call the handler
+             method = getattr(self, method_name)
+        else:
+            raise AttributeError(f"Missing handler for {method_name}!")
+        # run the method and return the result
+        return method(entry)
 
 
     def evaluate_expression(self, expr: str) -> Node:
@@ -439,6 +465,7 @@ class Interpreter:
         if isinstance(expr, str):
             str_expr = expr
         else:
+            # str_expr = str(expr)
             raise ValueError(f"Value to be evaluated is not a string: '{expr}'")
 
         if '{' not in str_expr:
@@ -458,28 +485,11 @@ class Interpreter:
         except (ValueError, SyntaxError):
             return r
 
+    
 
     # -------------------------
     # Specific handlers (after dispatcher)
     # -------------------------
-
-    def _despatch(self, keyword:str, entry:MappingEntry) -> Node:
-        """
-        Despatch the struct to the proper handler (dunder method)
-
-        '.load' -> self.handle_load()
-        """
-        assert keyword in self.CONSTRUCTS, f"Unknown keyword '{keyword}'"
-        
-        # find the handler method:
-        method_name = f"handle_{keyword[1:]}"
-        if hasattr(self, method_name):
-            # call the handler
-             method = getattr(self, method_name)
-        else:
-            raise AttributeError(f"Missing handler for {method_name}!")
-        # run the method and return the result
-        return method(entry)
         
 
     def _get_scope(self, params_block: Dict) -> Dict:
@@ -529,19 +539,16 @@ class Interpreter:
                 r = self.process_node(node)
                 if r:
                     results.append(r)
-            if len(results) == 1:
-                return results[0]
-            elif len(results) == 0:
-                return None
-            else:
-                return results
+            return collapse_seq(results)
         elif isinstance(entry.value, CommentedMap):
             # Accept also a map
+            # print("Map within a .do:", entry.value)
             return self.process_node(entry.value)
+        
 
     def handle_foreach(self, entry:MappingEntry) -> List[Any]:
         """
-        Loop
+        Loop through a sequence or iterable expression
 
         block = {
             ".values": [var_name, iterable_expr],
@@ -550,7 +557,7 @@ class Interpreter:
         """
         # print("\nFOREACH")
         var_name, iterable_expr = entry[".values"]
-        result = self.evaluate_expression(iterable_expr)
+        result = self.process_node(iterable_expr)
         # the result was a string; it needs to be converted:
         # iterable = dequote(result)
         iterable = result
@@ -565,7 +572,7 @@ class Interpreter:
             result = self.handle_do(do_entry)
             results.append(result)
             self.stack.pop()
-        return results
+        return collapse_seq(results)
 
 
     def handle_switch(self, entry:MappingEntry) -> Node:

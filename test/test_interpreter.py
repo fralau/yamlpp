@@ -139,3 +139,39 @@ def test_function():
     tree = i.tree
     r = i.yaml # renders
     print_yaml(r)
+
+
+def test_rendered_keys():
+    "Minimal test for foreach with rendered keys"
+
+    yaml_source = """
+.context:
+  users:
+    - { id: 1, name: joe, role: admin }
+    - { id: 2, name: jill, role: user }
+
+accounts:
+  .foreach:
+    .values: [u, "{{ users }}"]
+    .do:
+      "{{ u.name }}":
+            id: "{{ u.id }}"
+            role: "{{ u.role }}"
+"""
+
+    i = Interpreter()
+    i.load_text(yaml_source)
+
+    data = i.tree
+
+    print_yaml(i.yaml)
+
+    #Expected keys
+    assert list(data.accounts.keys()) == ["joe", "jill"]
+
+    # Check values
+    assert data.accounts.joe.id == 1
+    assert data.accounts.joe.role == "admin"
+
+    assert data.accounts.jill.id == 2
+    assert data.accounts.jill.role == "user"

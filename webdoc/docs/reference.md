@@ -63,25 +63,34 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 They "run, transform the tree and disappear".
 1. All other key/values in the source file are plain YAML.
 2. Internally, all values (nodes) are:
-   - **Maps** (dictionaries)
-   - **Sequences** (lists)
-   - **Scalars**: 
-     - integers, 
-     - reals, 
-     - strings,
-     - booleans (`true`, `false`), 
-     - timestamps ([ISO-8601](https://www.cl.cam.ac.uk/~mgk25/iso-time.html)), and
-     - `null` 
-3. A value can be any YAML valid value. 
-4. It can also be a string containing a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
+      - **Maps** (dictionaries)
+      - **Sequences** (lists)
+      - **Scalars**: 
+        - integers, 
+        - reals, 
+        - strings,
+        - booleans (`true`, `false`), 
+        - timestamps ([ISO-8601](https://www.cl.cam.ac.uk/~mgk25/iso-time.html)), and
+        - `null` 
+3. A **string** value can be a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
+   That expression relies in particular on variables.
    If the result string is a valid Python literal (a scalar, or a list or dictionary), then YAMLpp will convert it into a node.
-5. The final output is a YAML tree where all YAMLpp constructs have disappeared.
+4. A YAMLpp value collapses results of sequences (lists), in a way that is natural
+   for the purpose 
+   (empty lists return nothing, a list of 1 returns the item, etc.).
+   For more details, see [description](advanced.md#collapse-rule)
+5. Keys can also contain Jinja2 statements (you can write `{server_name}: ...` 
+   instead of `production: ...`, as long as `server_name` is a defined variable.
+6. The final output is a YAML tree where all YAMLpp constructs have disappeared.
 
 !!!Tip "YAMLpp obeys the rules of YAML syntax"
     - It provides declarative constructs without breaking YAML syntax. 
     - It allows modular, reusable, and expressive constructs that generate YAML files.
 
-## 🔧 Constructs
+
+
+
+## 🔧 Constructs of the YAMLpp language
 
 Each construct is defined below with its purpose and an example.
 

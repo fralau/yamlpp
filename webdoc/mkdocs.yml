@@ -24,6 +24,7 @@ nav:
   - Guide: guide.md
   - Modules: modules.md
   - Reference: reference.md
+  - Advanced: advanced.md
   - Troubleshooting: troubleshooting.md
 
 markdown_extensions:

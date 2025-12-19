@@ -119,12 +119,40 @@ def repr_patch(self):
 
 
 
-# Monkey‑patch
 CommentedMap.__getattr__ = getattr_patch
 CommentedMap.__setattr__ = setattr_patch
 CommentedMap.__repr__    = repr_patch
 CommentedMap.is_patched = True # confirm it is patched.
 
+
+def collapse_seq(seq:collections.abc.Sequence):
+    """
+    Collapse a list (sequence); a key component of YAMLpp semantics.
+
+    It is what makes loops return expected items.
+
+    - A sequence of 0 returns None
+    - A sequence of 1 returns the element.
+    - A sequence of more than 1, where each element is a mapping of cardinality 1,
+      returns a mapping of cardinality n
+    - Otherwise, no collapse
+    """
+    if len(seq) == 1:
+        return seq[0]
+    elif len(seq) == 0:
+        return None
+    elif all(
+        isinstance(x, collections.abc.Mapping) and len(x) == 1
+        for x in seq):
+        # this is the case of a list containing 1 mapping each
+        result = {}
+        for el in seq:
+            # print("Element:", el)
+            key, value = next(iter(el.items()))
+            result[key] = value
+        return result
+    else:
+        return seq
 
 # Global reusable round-trip YAML instance, using ruamel defaults
 class ImmutableYAML(YAML):
