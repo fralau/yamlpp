@@ -55,46 +55,50 @@ def test_handle_export(tmp_path:str, fmt:str, explicit:bool):
 
 # Arrange
 CURRENT_DIR = Path(__file__).parent 
-EXPORT = "_export" 
+EXPORT = Path("_export")
+SOURCE = Path('source')
 
-SOURCE_DIR = CURRENT_DIR / 'source'
-
-EXPORT_DIR = SOURCE_DIR / EXPORT
-EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+SOURCE_ABS = CURRENT_DIR / SOURCE
+EXPORT_ABS = SOURCE_ABS / EXPORT
+EXPORT_ABS.mkdir(parents=True, exist_ok=True)
 
 
 def test_export_enviroment():
-    assert SOURCE_DIR.is_dir()
-    assert EXPORT_DIR.is_dir()
-    print("Export dir: ", EXPORT_DIR)
+    assert SOURCE_ABS.is_dir()
+    assert EXPORT_ABS.is_dir()
+    print("Export dir: ", EXPORT_ABS)
 
 
 def test_export_yaml():
     """
     Test YAMLpp export, with the full chain
     """
-    
-    SOURCE_FILENAME = SOURCE_DIR / 'test1.yaml'
-    EXPORT_FILENAME = f'{EXPORT}/export1.yaml' # relative
+    # relative
+    SOURCE_FILENAME = 'test1.yaml'
+    EXPORT_FILENAME = 'export1.yaml' 
 
     # Act
     i = Interpreter()
-    i.load(SOURCE_FILENAME)
+    i.load(SOURCE_ABS / SOURCE_FILENAME, render=False)
     
     # Replace the accounts in the source file by an export clause
     accounts = i.initial_tree.pop('accounts')
-    block = {'.filename': EXPORT_FILENAME, 
+    EXPORT_REL = EXPORT / EXPORT_FILENAME
+    print(f"Exporting: {EXPORT_REL}")
+    block = {'.filename': EXPORT_REL, 
              '.do' : {'accounts': accounts},
              '.args':
                 {'allow_unicode': False} # will not make any difference here for the round trip
              }
     i.initial_tree['.export'] = block
+    i.render_tree()
     print("Destination:")
     print_yaml(i.yaml)
 
     # Assert
-    exported = SOURCE_DIR / EXPORT_FILENAME
-    assert exported.is_file()
+    exported = EXPORT_ABS / EXPORT_FILENAME
+    assert exported.is_file(), f"Cannot find file '{exported}'"
+
     print("Reloading...")
     i2 = Interpreter()
     i2.load(exported)

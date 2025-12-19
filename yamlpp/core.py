@@ -46,6 +46,9 @@ GLOBAL_CONTEXT = {
     "get_password": keyring.get_password
 }
 
+# strings accepted as expressions
+STRING_LIKE = str, Path
+
 
 
 class MappingEntry:
@@ -463,8 +466,8 @@ class Interpreter:
         Evaluate a Jinja2 expression string against the stack.
         If the expr is not a string, fail miserably.
         """
-        if isinstance(expr, str):
-            str_expr = expr
+        if isinstance(expr, STRING_LIKE):
+            str_expr = str(expr)
         else:
             # str_expr = str(expr)
             raise ValueError(f"Value to be evaluated is not a string: '{expr}'")
@@ -726,16 +729,14 @@ class Interpreter:
         """
         Exports the subtree into an external file
 
-        block = {
-            ".filename": ...,
-            ".format": ... # optional
-            ".args": { } # the additional arguments
-            ".do": {...} or []
-        }
+        export:
+            .filename: ...,
+            .format: ... # optional
+            .args: { } # the additional arguments
+            .do: {...} or []
         """
         filename = self.evaluate_expression(entry['.filename'])
         full_filename = Path(self.source_dir) / filename
-
         # ✅ Ensure the parent directory exists (CI-safe)
         Path(full_filename).parent.mkdir(parents=True, exist_ok=True)
 
@@ -749,6 +750,8 @@ class Interpreter:
 
         with open(full_filename, 'w') as f:
             f.write(file_output)
+        assert Path(full_filename).is_file()
+        print(f"Exported to: {full_filename} ✅ ")
 
 
 
