@@ -22,8 +22,7 @@ from .util import CommentedMap, CommentedSeq # Patched versions (DO NOT CHANGE T
 from .error import YAMLppError, Error, JinjaExpressionError, DispatcherError
 from .import_modules import get_exports
 
-from .sql import SQLConnection, sql_create_engine, sql_text, sql_query, SQLOperationalError
-
+from .sql import sql_create_engine, sql_query, SQLOperationalError, osquery
 
 
 # --------------------------
@@ -40,11 +39,12 @@ KeyOrIndexentry = Tuple[Union[str, int], Node]
 # Global functions for Jinja2
 
 import keyring
-
 GLOBAL_CONTEXT = {
-    "getenv": os.getenv,
-    "get_password": keyring.get_password
-}
+    "getenv": os.getenv, # function
+    "get_password": keyring.get_password, # function
+    "osquery": osquery, # function 
+        }
+
 
 # strings accepted as expressions
 STRING_LIKE = str, Path
@@ -120,6 +120,7 @@ class MappingEntry:
 # --------------------------
 class Interpreter:
     "The interpreter class that works on the YAMLLpp AST"
+
 
     # The list of allowed construct keywords for the Dispatcher
     # the handlers behave as dunder methods (with same name)
@@ -781,7 +782,7 @@ class Interpreter:
         query = self.evaluate_expression(entry['.query']) or {}
         try:
             rows = sql_query(engine, query)
-        except SQLOperationalError as e:
+        except (SQLOperationalError, RuntimeError) as e:
             raise YAMLppError(entry.value, Error.SQL, e)     
         return rows
 
@@ -808,7 +809,7 @@ class Interpreter:
         for row in rows:
             # Ensure each row is a YAML node, not a plain dict
             seq.append(CommentedMap(row))
-        return seq
+        return collapse_seq(seq)
 
     # -------------------------
     # Output
@@ -829,3 +830,17 @@ class Interpreter:
         "Serialize the output into one of the supported serialization formats"
         tree = self.render_tree()
         return serialize(tree, format)
+    
+
+
+def yamlpp_comp(program:str, working_dir:str=None) -> tuple[str, Node] :
+    """
+    Compile a program and return the YAML + AST
+
+    Arguments:
+    - program: the YAMLpp source
+    - working_dir: the directory from which it will operate
+    """
+    i = Interpreter(source_dir=working_dir)
+    i.load_text(program)
+    return i.yaml, i.tree

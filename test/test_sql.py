@@ -9,15 +9,18 @@ This keeps each test simple:
 """
 
 from string import Template
+import subprocess
 
 import pytest
+from unittest.mock import Mock, patch
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 from ruamel.yaml.comments import CommentedSeq
 
-from yamlpp import Interpreter
+from yamlpp import Interpreter, yamlpp_comp
 from yamlpp.util import print_yaml
-from yamlpp.sql import sql_text, sql_create_engine
+from yamlpp.sql import sql_text, sql_create_engine, osquery
+from yamlpp.error import YAMLppError
 
 def inspect_db(engine: Engine):
     "Inspect a db and return info"
@@ -253,7 +256,7 @@ config:
     print_yaml(interp.yaml, filename="Interpreted file")
 
     # --- 4. Assertions ---
-    cfg = result["config"]
+    cfg = result.config
 
     assert isinstance(cfg, list)
     assert len(cfg) == 3
@@ -267,3 +270,54 @@ config:
     assert cfg[2]["name"] == "gamma"
     assert cfg[2]["address"] == "10.0.0.3"
 
+
+# -------------------------
+# osquery engine
+# -------------------------
+
+OS_QUERY_PROGRAM = """
+time:
+    .load_sql:
+        .engine: osquery
+        .query: "SELECT * FROM TIME"
+"""
+
+def test_os_query():
+    "Test OS Query"
+
+    # this query, because of the collapse rule (1 row)
+    # will return a dictionary
+    i = Interpreter()
+    tree = i.load_text(OS_QUERY_PROGRAM)
+    print_yaml(i.yaml, "osquery")
+    # all values from osquery are strings
+    from datetime import datetime
+    assert tree.time.year  == str(datetime.now().year)
+    assert tree.time.month == str(datetime.now().month)
+
+
+def test_unit_osquery_not_installed():
+    "Unit test, not installed"
+    with patch("subprocess.run", side_effect=FileNotFoundError):
+        with pytest.raises(RuntimeError, match="osqueryi command not found"):
+            osquery("SELECT 1;")
+
+
+def test_unit_osquery_query_failure():
+    "Query error"
+    error = subprocess.CalledProcessError(
+        returncode=1,
+        cmd=["osqueryi"],
+        stderr="syntax error"
+    )
+
+    with patch("subprocess.run", side_effect=error):
+        with pytest.raises(RuntimeError, match="osqueryi failed"):
+            osquery("BAD SQL")
+
+
+def test_osquery_not_installed():
+    "osquery not installed"
+    with patch("subprocess.run", side_effect=FileNotFoundError):
+        with pytest.raises(YAMLppError, match="osqueryi command not found"):
+            yaml, tree = yamlpp_comp(OS_QUERY_PROGRAM)
