@@ -4,13 +4,15 @@
 
 ### Definition
 
-!!! Note "Important"
-    The **Collapse Rule** is key to understand how YAMLLpp results are processed.
+!!! Tip "Important"
+    The **Collapse Rule** is key to understand how YAMLLpp results are processed by the `.do` construct.
 
-    It defines how YAMLpp reduces **sequences** into simpler semantic forms.
+    It defines how YAMLpp reduces **sequences** of actions into simpler semantic forms.
     It governs how loop expansions and other generative constructs produce final YAML structures.
 
-    This rule is central to YAMLpp semantics because it ensures that constructs like `.foreach` naturally produce mappings rather than lists of tiny maps, yielding intuitive and structurally coherent YAML output
+    This rule is central to YAMLpp semantics because it ensures that it behaves in a way that
+    least surprises users.
+
 
 A sequence collapses according to the following principles:
 
@@ -20,15 +22,9 @@ A sequence collapses according to the following principles:
 2. **Single‑element sequence → the element itself**  
   When a construct yields exactly one item, it is returned directly without wrapping.
 
-3. **Multi‑element sequence of 1‑key mappings → merged mapping**  
-  If every element in the sequence is a mapping of cardinality one, the sequence is interpreted as a distributed mapping.  
-  The result is a single mapping whose keys and values come from merging each element’s sole key–value pair.
-
-4. **Otherwise → no collapse**  
+3. **Otherwise → no collapse**  
   If the sequence does not meet the above conditions, it is returned unchanged.
 
-
-### Examples
 
 #### 1. Empty sequence → `None`
 
@@ -58,28 +54,44 @@ items: apple
 ```
 
 
-#### 3. Sequence of 1‑key mappings → merged mapping
 
-**Input**
+
+
+### `.foreach` and the Collapse Rule
+
+!!! Warning "`.foreach` always returns a sequence"
+    It is important to understand that despite the fact that `.foreach` contains a `.do`
+    sequence, it always returns a list.
+
+    .foreach is, by essence, an operation on sequences (tables, lists, etc.)
+
+    `.do` will collapse the results, but if there is one result left, then `.foreach` will return
+    it as a _list of 1 element_.
+
+
+#### Example
+
+
 ```yaml
-items:
-  - { a: 1 }
-  - { b: 2 }
-  - { c: 3 }
+result:
+    .foreach:
+    .values: [x, [1]]
+    .do:
+        - "{{x}}"
 ```
 
-**Collapsed result**
+Wil result in:
 ```yaml
-items:
-  a: 1
-  b: 2
-  c: 3
+result:
+    - 1
 ```
 
 
-### Example: `.foreach` producing a collapsed mapping
+### `.foreach` producing a collected mapping
 
-This example shows how a `.foreach` loop naturally triggers the collapse rule by generating a **sequence of mappings of cardinality 1**, which YAMLpp then collapses into a single merged mapping.
+However the `.foreach` loop naturally collects of a **sequence of mappings of cardinality 1**, into a single merged mapping.
+
+#### Example
 
 **Input**
 ```yaml
@@ -96,16 +108,16 @@ accounts:
         id: "{{ u.id }}"
 ```
 
-**Intermediate (before collapse)**
+**Intermediate (before collecting)**
 ```yaml
 accounts:
   - { joe:  { id: 1 } }
   - { jill: { id: 2 } }
 ```
 
-Each element is a mapping with exactly one key → collapsible.
+Each element is a mapping with exactly one key → can be collected.
 
-**Collapsed result**
+**Collected result**
 ```yaml
 accounts:
   joe:
@@ -114,7 +126,28 @@ accounts:
     id: 2
 ```
 
-This demonstrates how `.foreach` integrates seamlessly with the collapse rule to produce clean, natural YAML structures.
+
+#### How to disable collected mapping
+
+For the cases where you wish to preserve the list of mappings with one key,
+set the `collect_maps` attribute to `false`.
+
+
+```yaml
+.context:
+  users:
+    - { id: 1, name: joe }
+    - { id: 2, name: jill }
+
+accounts:
+  .foreach:
+    .values: [u, "{{ users }}"]
+    .collect_mappings: false
+    .do:
+      "{{ u.name }}":
+        id: "{{ u.id }}"
+```
+
 
 ## How to escape  expressions
 

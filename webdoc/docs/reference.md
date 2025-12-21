@@ -119,9 +119,16 @@ message: "Hello, Alice!"
 
 
 ### `.do`
-**Definition**: Execute a sequence of node creations, in order.
+**Definition**: Execute a sequence of node creations, in order. 
 
-However, if it finds a map, it will process and return it.
+In principle, it returns a list, unless:
+
+- that list is of length 1, in which case it returns a scalar.
+- that list is empty, in which case it returns `null`
+
+This is called **[collapse](advanced.md#the-collapse-rule))**.
+
+However, if `.do` precedes a map, it will process and return it.
 
 
 **Example**:
@@ -141,8 +148,10 @@ However, if it finds a map, it will process and return it.
 
 
 ### `.foreach`
-**Definition**: Iterates over values with a loop body.
-You could also generate a map (dictionary) instead of a sequence (list). 
+**Definition**: Iterates over values with a loop body. 
+If you iterate over a sequence, you will **always** get a sequence (even if empty or with length of 1).
+
+However, if the expression results in a map, `.foreach` just returns the map. 
 
 **Example**:
 ```yaml

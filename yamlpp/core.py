@@ -18,8 +18,8 @@ from jinja2.exceptions import UndefinedError as Jinja2UndefinedError
 from pprint import pprint
 
 from .stack import Stack
-from .util import load_yaml, validate_node, parse_yaml, safe_path
-from .util import to_yaml, serialize, get_format, deserialize, normalize, collapse_seq
+from .util import load_yaml, validate_node, parse_yaml, safe_path, print_yaml
+from .util import to_yaml, serialize, get_format, deserialize, normalize, collapse_seq, collapse_maps
 from .util import CommentedMap, CommentedSeq # Patched versions (DO NOT CHANGE THIS!)
 from .error import YAMLppError, Error, JinjaExpressionError, DispatcherError
 from .import_modules import get_exports
@@ -74,16 +74,14 @@ class MappingEntry:
         except AttributeError:
             raise ValueError("This mapping entry does not have attribues")
 
-    def get(self, key:str|int, err_msg:str=None, strict:bool=False) -> Node:
+    def get(self, key:str|int, default:Any=None, 
+            err_msg:str=None, strict:bool=False) -> Node:
         """
-        Get a child node from a node by key, and raise an error if not found.
+        Get a child node from a node by key.
         The value of entry must be either dict (it's an attribute) or list.
+
+        If strict is True, it raises an error if not found.
         """
-        if not isinstance(self.value, (list, dict)):
-            # it's probably a scalar
-            return None
-            # raise YAMLppError(self.value, Error.KEY,
-            #             f"Key {self.key} points on a scalar or non-recognized type ({type(self.value).__name__})")
         try:
             return self.value[key]
         except (KeyError, IndexError):
@@ -95,7 +93,7 @@ class MappingEntry:
                         err_msg = f"Sequence in {self.key}' does not contain {key}nth element"
                 raise YAMLppError(self.value, Error.KEY, err_msg)
             else:
-                return None
+                return default
             
     def get_sub_entry(self, key:str|int) -> Self:
         """
@@ -131,7 +129,8 @@ class Interpreter:
     # When you create a new construct:
     #  - Create the handler
     #  - Register it in this list
-    CONSTRUCTS = ('.context', '.do', '.foreach', '.switch', '.if', 
+    CONSTRUCTS = ('.context', '.do', '.foreach',
+                  '.switch', '.if', 
                   '.load', '.import', 
                   '.function', '.call', '.export', 
                   '.def_sql', '.exec_sql', '.load_sql')
@@ -207,6 +206,11 @@ class Interpreter:
             validate_node(self._initial_tree)
         self._reset_environment()
 
+        # set the source file (if defined)
+        self._source_file = ''
+        if not is_text:
+            self._source_file = source
+
         if render:
             self._tree = self.render_tree()
             return self.tree
@@ -275,8 +279,13 @@ class Interpreter:
     
     @property
     def source_dir(self) -> str:
-        "The source directory (where all YAML and other files are located)"
+        "The source/working directory (where all YAML and other files are located)"
         return self._source_dir
+    
+    @property
+    def source_file(self) -> str:
+        "The source file (if it exists)"
+        return self._source_file
 
     # -------------------------
     # Preprocessing
@@ -535,13 +544,13 @@ class Interpreter:
         Sequence of instructions
         (it will also accept a map)
 
-        Collapse of the result:
+        Collapse a returned sequence:
             - only 1 result, returns it.
             - no result: returns None
         """
         # print(f"*** DO action ***")
         if isinstance(entry.value, CommentedSeq):
-            results: ListNode = []
+            results = CommentedSeq()
             for node in entry.value:
                 r = self.process_node(node)
                 if r:
@@ -556,14 +565,16 @@ class Interpreter:
     def handle_foreach(self, entry:MappingEntry) -> Node:
         """
         Loop through a sequence or iterable expression.
+        A foreach always returns a sequence.
+        This is useful for building composite objects; it's usually what you want.
 
-        block = {
-            ".values": [var_name, iterable_expr],
-            ".do": [...]
-        }
+        .values: [var_name, iterable_expr]: the variable and the list/expression
+        .do: [...] : the list of actions
+    
         """
         # print("\nFOREACH")
         var_name, iterable_expr = entry[".values"]
+        collect_maps = entry.get('.collect_mappings', True)
         # print("foreach expression:", iterable_expr)
         result = self.process_node(iterable_expr)
         # print("foreach result:", type(result).__name__, "=>", result)
@@ -571,8 +582,7 @@ class Interpreter:
         if isinstance(result, Sequence):
             # an iterable
             iterable = result
-
-            results: List[Any] = []
+            results = CommentedSeq()
             for item in iterable:
                 local_ctx = {}
                 local_ctx[var_name] = item
@@ -582,7 +592,11 @@ class Interpreter:
                 result = self.handle_do(do_entry)
                 results.append(result)
                 self.stack.pop()
-            return collapse_seq(results)
+            if collect_maps:
+                # normally we collapse maps
+                return collapse_maps(results)
+            else:
+                return results
         elif isinstance(result, Mapping):
             return result
         else:
@@ -828,7 +842,7 @@ class Interpreter:
     @property
     def yaml(self) -> str:
         """
-        Return the final yaml output
+        Return the final YAML output
         (it supports a round trip)
         """
         tree = self.render_tree()
@@ -842,15 +856,39 @@ class Interpreter:
         return serialize(tree, format)
     
 
+    def print(self, filename:str=None) -> str:
+        """
+        Nicely prints the final YAML output to the console.
+        """
+        filename = filename or self.source_file
+        print_yaml(self.yaml, filename)
 
-def yamlpp_comp(program:str, working_dir:str=None) -> tuple[str, Node] :
-    """
-    Compile a program and return the YAML + AST
 
-    Arguments:
-    - program: the YAMLpp source
-    - working_dir: the directory from which it will operate
+def yamlpp_comp(program: str, working_dir: str | None = None) -> tuple[str, Node]:
     """
+    Compile and execute a YAMLpp program.
+
+    Parameters
+    ----------
+    program : str
+        The YAMLpp source text to compile and evaluate.
+    working_dir : str | None
+        The directory used as the base for relative file operations
+        during compilation and evaluation.
+
+    Returns
+    -------
+    output_yaml :
+        The final YAML output produced by the interpreter,
+        serialized as a YAML-formatted string. This is the fully
+        evaluated result of the program (not the original source).
+    tree :
+        The internal AST representation of the evaluated result.
+        This is a structured, in-memory data model corresponding
+        to the final YAML output (it is *not* the source AST, but
+        the tree after evaluation).
+    """
+
     i = Interpreter(source_dir=working_dir)
     i.load_text(program)
     return i.yaml, i.tree

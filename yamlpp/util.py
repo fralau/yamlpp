@@ -125,6 +125,8 @@ CommentedMap.__repr__    = repr_patch
 CommentedMap.is_patched = True # confirm it is patched.
 
 
+
+
 def collapse_seq(seq:collections.abc.Sequence):
     """
     Collapse a list (sequence); a key component of YAMLpp semantics.
@@ -132,16 +134,29 @@ def collapse_seq(seq:collections.abc.Sequence):
     It is what makes loops return expected items.
 
     - A sequence of 0 returns None
-    - A sequence of 1 returns the element.
+    - A sequence of 1 returns the element (unless keep_singleton=True).
     - A sequence of more than 1, where each element is a mapping of cardinality 1,
       returns a mapping of cardinality n
     - Otherwise, no collapse
     """
-    if len(seq) == 1:
-        return seq[0]
-    elif len(seq) == 0:
+   # print("Collapse...")
+    if not isinstance(seq, collections.abc.Sequence):
+        raise ValueError(f"Cannot collapse, this is not a sequence: {seq}")
+    if len(seq) == 0:
         return None
-    elif all(
+    elif len(seq) == 1:
+        r = seq[0]
+        # print("...sequence of length 1:", seq, '=>', r)
+        # singletons (lists of one) are unpacked; 
+        return r
+    else:
+        # print("Return the item")
+        return seq
+
+
+def collapse_maps(seq:collections.abc.Sequence):
+    "Collapse all the maps in a sequence"
+    if all(
         isinstance(x, collections.abc.Mapping) and len(x) == 1
         for x in seq):
         # this is the case of a list containing 1 mapping each
