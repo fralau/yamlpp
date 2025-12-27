@@ -128,6 +128,7 @@ class Error(str, Enum):
     FILE = "FileError"
     EXPRESSION = "ExpressionError"
     SQL = "SQLError"
+    VALUE = "ValueError"
     # add more categories as needed
 
     def __str__(self):

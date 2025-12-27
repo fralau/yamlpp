@@ -21,7 +21,6 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.text import Text
 import tomlkit
-import pprint
 
 from .error import YAMLValidationError, YAMLppValidationError, GeneralYAMLppError
 
@@ -67,7 +66,12 @@ def safe_path(root: str | Path, pathname: str | Path) -> Path:
 
     return candidate
 
-
+def get_full_filename(source_dir:str, filename:str) -> str:
+    "Get the full filename, making sure that it exists"
+    full_filename = Path(source_dir) / filename
+     # ✅ Ensure the parent directory exists (CI-safe)
+    Path(full_filename).parent.mkdir(parents=True, exist_ok=True)
+    return full_filename
 
 # -------------------------
 # Interpretation
@@ -462,9 +466,18 @@ def validate_node(node):
         print("No validation errors found.")
 
 
-
-
-
+# -------------------------
+# Other
+# -------------------------
+def check_name(name:str) -> None:
+    """
+    Check 
+    """
+    if not name:
+        raise ValueError("Name is empty")
+    elif not name.isidentifier:
+        raise ValueError(f"Name '{name}' is not a valid identifier")
+    # pass
 
 
 

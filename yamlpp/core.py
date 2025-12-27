@@ -7,7 +7,9 @@ Core application for the YAMLpp interpreter
 import os
 from typing import Any, Dict, List, Optional, Union, Tuple, Self
 import ast
+from enum import Enum
 from pathlib import Path
+# import textwrap
 from collections.abc import Sequence, Mapping
 
 
@@ -18,9 +20,11 @@ from jinja2.exceptions import UndefinedError as Jinja2UndefinedError
 from pprint import pprint
 
 from .stack import Stack
-from .util import load_yaml, validate_node, parse_yaml, safe_path, print_yaml
+from .util import load_yaml, validate_node, parse_yaml, safe_path, print_yaml 
+from .util import check_name, get_full_filename
 from .util import to_yaml, serialize, get_format, deserialize, normalize, collapse_seq, collapse_maps
 from .util import CommentedMap, CommentedSeq # Patched versions (DO NOT CHANGE THIS!)
+from .buffer import render_buffer, Indentation
 from .error import YAMLppError, Error, JinjaExpressionError, DispatcherError
 from .import_modules import get_exports
 
@@ -51,6 +55,11 @@ GLOBAL_CONTEXT = {
 # strings accepted as expressions
 STRING_LIKE = str, Path
 
+
+
+# class Indentation(int):
+#     "Relative indentation in no of units"
+#     pass
 
 
 class MappingEntry:
@@ -133,7 +142,8 @@ class Interpreter:
                   '.switch', '.if', 
                   '.load', '.import', 
                   '.function', '.call', '.export', 
-                  '.def_sql', '.exec_sql', '.load_sql')
+                  '.def_sql', '.exec_sql', '.load_sql',
+                  '.open_buffer', '.write_buffer', '.save_buffer')
 
 
 
@@ -478,7 +488,11 @@ class Interpreter:
         Evaluate a Jinja2 expression string against the stack.
         If the expr is not a string, fail miserably.
         """
-        if isinstance(expr, STRING_LIKE):
+        if expr is None:
+            return None
+        elif isinstance(expr, (int, float)):
+            return expr
+        elif isinstance(expr, STRING_LIKE):
             str_expr = str(expr)
         else:
             # str_expr = str(expr)
@@ -568,8 +582,9 @@ class Interpreter:
         A foreach always returns a sequence.
         This is useful for building composite objects; it's usually what you want.
 
-        .values: [var_name, iterable_expr]: the variable and the list/expression
-        .do: [...] : the list of actions
+        .foreach
+            .values: [var_name, iterable_expr]: the variable and the list/expression
+            .do: [...] : the list of actions
     
         """
         # print("\nFOREACH")
@@ -761,8 +776,7 @@ class Interpreter:
             .do: {...} or []
         """
         filename = self.evaluate_expression(entry['.filename'])
-        full_filename = Path(self.source_dir) / filename
-        # ✅ Ensure the parent directory exists (CI-safe)
+        full_filename = get_full_filename(self.source_dir, filename)
         Path(full_filename).parent.mkdir(parents=True, exist_ok=True)
 
         format = entry.get('.format')  # get the export format, if there
@@ -776,7 +790,7 @@ class Interpreter:
         with open(full_filename, 'w') as f:
             f.write(file_output)
         assert Path(full_filename).is_file()
-        print(f"Exported to: {full_filename} ✅ ")
+        # print(f"Exported to: {full_filename} ✅ ")
 
 
 
@@ -814,8 +828,9 @@ class Interpreter:
         """
         Execute a query on an connection (SQL Alchemy)
 
-        .engine: ... # the name of the engine
-        .query:  ... # the query to be executed
+        .exec_sql:
+            .engine: ... # the name of the engine
+            .query:  ... # the query to be executed
         """
         self._sql_query(entry)
         
@@ -824,8 +839,9 @@ class Interpreter:
         """
         Loads data from an SQL connection (SQL Alchemy) as a sequence
 
-        .engine: ... # the name of the engine
-        .query:  ... # the query to be executed
+        .load_sql:
+            .engine: ... # the name of the engine
+            .query:  ... # the query to be executed
         """
         rows = self._sql_query(entry)
         # print("Load SQL was run:\n", rows)
@@ -834,6 +850,73 @@ class Interpreter:
             # Ensure each row is a YAML node, not a plain dict
             seq.append(CommentedMap(row))
         return collapse_seq(seq)
+
+
+    def handle_open_buffer(self, entry:MappingEntry) -> None:
+        """
+        Open a text buffer for output
+
+        .open_buffer:
+            .name: ...     # identifier of the buffer
+            .language: ... # language (optional, indicative)
+            .init:  ...    # initial text
+            .indent: ....  # the indentation (default = 4)
+        """
+        DEFAULT_INDENT = 4
+        name = self.evaluate_expression(entry['.name'])
+        try:
+            check_name(name)
+        except Exception as e:
+            raise YAMLppError(entry.value, Error.VALUE, e)
+        language = self.evaluate_expression(entry.get('.language'))
+        init = self.evaluate_expression(entry.get('.init'))
+        indent = self.evaluate_expression(entry.get('.indent', DEFAULT_INDENT))
+        self.stack[name] = {'name': name, 
+                            'language': language, 
+                            'content': [init], # list of items
+                            'indent_level': 0,
+                            'indent': indent,
+                            }
+
+    def handle_write_buffer(self, entry:MappingEntry) -> None:
+        """
+        Write text into a pre-defined buffer
+
+        The text given as input is evaluated (use %raw/%end_raw to exclude evalution)
+        .write_buffer:
+            .name: ... # identifier of the buffer
+            .align: ... # alignment ('same', 'indent', 'dedent', 'left'; default is 'same')
+            .text: ... # text of the buffer
+        """
+        name = self.evaluate_expression(entry['.name'])
+        check_name(name)
+        text = self.evaluate_expression(entry.get('.text', ''))
+        indent = self.evaluate_expression(entry.get('.indent', 0))
+        # update the content buffer:
+        content = self.stack[name]['content']
+        content.append(Indentation(indent))
+        content.append(text)
+
+    def handle_save_buffer(self, entry: MappingEntry) -> None:
+        """
+        Save the buffer's text in a file.
+
+        .save_buffer:
+            .name: ...     # identifier of the buffer
+            .filename: ... # filename, relative 
+        """
+        name = self.evaluate_expression(entry['.name'])
+        check_name(name)
+        filename = self.evaluate_expression(entry['.filename'])
+        full_filename = get_full_filename(self.source_dir, filename)
+        print("Full filename:", full_filename)
+        # Create and print the output:
+        buffer = self.stack[name]
+        indent_width = buffer['indent']
+        file_output = render_buffer(buffer["content"], indent_width)
+        with open(full_filename, 'w') as f:
+            f.write(file_output)
+        assert Path(full_filename).is_file()
 
     # -------------------------
     # Output
@@ -862,6 +945,8 @@ class Interpreter:
         """
         filename = filename or self.source_file
         print_yaml(self.yaml, filename)
+
+
 
 
 def yamlpp_comp(program: str, working_dir: str | None = None) -> tuple[str, Node]:
