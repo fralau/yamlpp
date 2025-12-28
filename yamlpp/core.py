@@ -138,12 +138,13 @@ class Interpreter:
     # When you create a new construct:
     #  - Create the handler
     #  - Register it in this list
-    CONSTRUCTS = ('.context', '.do', '.foreach',
-                  '.switch', '.if', 
+    CONSTRUCTS = ('.context','.define',
+                  '.do', '.foreach', '.switch', '.if', 
                   '.load', '.import', 
-                  '.function', '.call', '.export', 
+                  '.function', '.call',  
                   '.def_sql', '.exec_sql', '.load_sql',
-                  '.open_buffer', '.write_buffer', '.save_buffer')
+                  '.export', '.open_buffer', '.write_buffer', '.save_buffer',
+                  '.print')
 
 
 
@@ -478,8 +479,21 @@ class Interpreter:
         else:
             raise AttributeError(f"Missing handler for {method_name}!")
         # run the method and return the result
-        return method(entry)
-
+        try:
+            return method(entry)
+        except YAMLppError as e:
+            if e.line_no != 0:
+                raise YAMLppError(e.node, e.err_type, e.message)
+            else:
+                raise YAMLppError(entry.value, e.err_type, e.message)
+        except ValueError as e:
+            raise YAMLppError(entry.value, Error.VALUE, e)
+        except IndexError as e:
+            raise YAMLppError(entry.value, Error.INDEX, e)
+        except TypeError as e:
+            raise YAMLppError(entry.value, Error.TYPE, e)
+        except Exception as e:
+            raise YAMLppError(entry.value, Error.OTHER, e)
 
     def evaluate_expression(self, expr: str) -> Node:
         """
@@ -543,14 +557,39 @@ class Interpreter:
 
     def handle_context(self, entry:MappingEntry) -> None:
         """
-        .context creates a new block.
+        Creates a new context (scope) on the stack, and adds variables.
+
+        Note: you cannot reuse variables defined in the same .context block.
+
+        .context:
+            ....
 
         """
         self.stack.push({}) # create the scope before doing calculations
-        new_scope = self._get_scope(entry.value)
+        # print("Value:\n", entry.value)
+        result = self.process_node(entry.value)
+        new_scope = self._get_scope(result)
         # print("New scope:\n", new_scope)
         self.stack.update(new_scope)
         self.jinja_env.filters.push({})
+        return None
+    
+    def handle_define(self, entry:MappingEntry) -> None:
+        """
+        Defines new variables, without creating a new scope.
+
+        Note: you cannot reuse variables defined in the same .export block.
+
+        It is useful
+        - when used before the `.context`in an imported file: for exporting variables
+          to the parent context.
+        - after a .context, for defining new variables, without changing scope
+        """# create the scope before doing calculations
+        # print("Value:\n", entry.value)
+        result = self.process_node(entry.value)
+        block = self._get_scope(result)
+        # print("New scope:\n", new_scope)
+        self.stack.update(block)
         return None
 
     def handle_do(self, entry:MappingEntry) -> ListNode:
@@ -793,7 +832,9 @@ class Interpreter:
         # print(f"Exported to: {full_filename} ✅ ")
 
 
-
+    # ---------------------
+    # SQL input
+    # ---------------------
 
     def handle_def_sql(self, entry:MappingEntry) -> None:
         """
@@ -852,6 +893,10 @@ class Interpreter:
         return collapse_seq(seq)
 
 
+
+    # ---------------------
+    # Buffer generation
+    # ---------------------
     def handle_open_buffer(self, entry:MappingEntry) -> None:
         """
         Open a text buffer for output
@@ -909,7 +954,7 @@ class Interpreter:
         check_name(name)
         filename = self.evaluate_expression(entry['.filename'])
         full_filename = get_full_filename(self.source_dir, filename)
-        print("Full filename:", full_filename)
+        # print("Full filename:", full_filename)
         # Create and print the output:
         buffer = self.stack[name]
         indent_width = buffer['indent']
@@ -917,6 +962,17 @@ class Interpreter:
         with open(full_filename, 'w') as f:
             f.write(file_output)
         assert Path(full_filename).is_file()
+
+
+    # ---------------------
+    # Printing
+    # ---------------------
+    def handle_print(self, entry:MappingEntry) -> None:
+        """
+        Print the text
+        """
+        output = self.evaluate_expression(entry.value)
+        print(output)
 
     # -------------------------
     # Output

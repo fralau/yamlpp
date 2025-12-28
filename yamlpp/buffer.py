@@ -59,13 +59,13 @@ def render_buffer(content: list[str|Indentation], indent_width: int) -> str:
     indent_level = 0
     indented_buffer = []
     for item in content:
-        print("Indent level:", indent_level)
+        # print("Indent level:", indent_level)
         if isinstance(item, Indentation):
             # shift instruction
             indent_level += item
         else:
             # emit instruction
-            print("Found line:\n", item)
+            # print("Found line:\n", item)
             # handle the '. ' on first line (to allow right-shift with |)
             if item.startswith(SHIFT_SIGNAL):
                 item = REPLACEMENT + item.removeprefix(SHIFT_SIGNAL)
@@ -75,6 +75,6 @@ def render_buffer(content: list[str|Indentation], indent_width: int) -> str:
             indented_buffer.append(line)
             # Retro-propagation: infer the new indentation level from the last one
             indent_level = infer_indent_level(line, indent_width)
-            print("New indentation level:", indent_level)
-        print("---")
+            # print("New indentation level:", indent_level)
+        # print("---")
     return "\n".join(indented_buffer)

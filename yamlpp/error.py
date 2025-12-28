@@ -129,6 +129,8 @@ class Error(str, Enum):
     EXPRESSION = "ExpressionError"
     SQL = "SQLError"
     VALUE = "ValueError"
+    TYPE = "TypeError"
+    OTHER = "OtherError"
     # add more categories as needed
 
     def __str__(self):
@@ -144,8 +146,10 @@ class YAMLppError(GeneralYAMLppError):
             line_no = get_line_number(node) 
         else:
             line_no = 0
-        err_type = err_type
-        message = message
+        self.line_no = line_no
+        self.node = node
+        self.err_type = err_type
+        self.message = message
         super().__init__(line_no, err_type, message)
 
 

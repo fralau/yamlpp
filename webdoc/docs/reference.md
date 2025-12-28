@@ -276,7 +276,14 @@ message: "Hello Alice!"
 
 ### `.import`
 **Definition**: Import a Python module, exposing functions and filters to the Jinja expressions.
-  
+
+!!! Note "Delegation to Python"
+    In YAMLpp / Protein pipelines, **any complex logic that operates on a single mapping** (dictionary)
+    should be implemented as a **function** in Python, inside a module — not inside the YAMLpp code.
+
+    YAMLpp should remain declarative; Python is the better place for computation.
+
+
 **Example**:
 ```yaml
 .import: "module.py"

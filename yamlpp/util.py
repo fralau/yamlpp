@@ -31,7 +31,8 @@ from .error import YAMLValidationError, YAMLppValidationError, GeneralYAMLppErro
 CURRENT_DIR = Path(__file__).parent 
 console = Console()
 
-FILE_FORMATS = ['yaml', 'json', 'toml', 'python']
+# ypp format is considered here equivalent to yaml (to facilitate .load)
+FILE_FORMATS = ['yaml', 'json', 'toml', 'python', 'ypp']
 
 
 
@@ -392,7 +393,8 @@ CONV_FORMATS = {
     'yaml'   : to_yaml,
     'json'   : to_json,
     'python' : to_python,
-    'toml'   : to_toml
+    'toml'   : to_toml,
+    'ypp'    : to_yaml, # it's a pure alias of yaml
 }
 
 def serialize(tree, format:str='yaml', **kwargs) -> str:
@@ -430,7 +432,8 @@ def deserialize(text: str, format: str='yaml', *args, **kwargs):
         format = format.lower()
     else: 
         format = 'yaml'
-    if format == "yaml":
+    if format in ("yaml", 'ypp'):
+        # they are equivalent
         if args is None and kwargs is None:
             return parse_yaml(text)
         else:
