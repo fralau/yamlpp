@@ -296,6 +296,7 @@ normalized, in the sense that
   .format: yaml          # optional
   .args:    
     indent: 4            # control indentation width
+  .comment: ...           # an optional message
   .do: ...               # the part you wish to export.
 ```
 
@@ -306,6 +307,9 @@ YAMLpp constructs are expanded into YAML, before being exported.
 - The `.format` keyword is optional.
 - The `.args` keyword is used for the additional arguments passed to the format-specific 
   export function (by name).
+- The `.comment` keyword is used to issue a comment (could be multiline) at the top of the file
+  for the formats that accept it (all but json).
+  If no comment is given, a standard comment is added (to indicate that the file was auto-generated).
 
 
 === "JSON, TOML and others"

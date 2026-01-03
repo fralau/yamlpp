@@ -106,7 +106,16 @@ def test_export_yaml():
 
     print("Reloading...")
     i2 = Interpreter()
-    i2.load(exported)
+    # strips initial comment lines:
+    with open(exported) as f:
+        lines = []
+        for line in f:
+            if line.lstrip().startswith("#"):
+                continue
+            lines.append(line)
+    text = ''.join(lines)
+    # load
+    i2.load_text(text)
     tree = i2.initial_tree
     print("Reloaded YAML (as 'YAMLpp'):")
     print_yaml(i2.yamlpp, filename=EXPORT_FILENAME)

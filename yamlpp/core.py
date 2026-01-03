@@ -285,7 +285,15 @@ class Interpreter:
     
     @property
     def stack(self):
-        "The contextual Jinja stack containing the values"
+        """
+        The stack used to traverse the lexical tree (YAML).
+
+        NOTE: 
+            It is important to keep in mind that the YAML tree _is_ YAMLpp's lexical structure.
+            This stack is only the tool used to traverse the tree.
+
+            (This is NOT an execution stack, in the traditional way. Execution is done by Jinja.)
+        """
         # return self._stack
         return self.jinja_env.globals
     
@@ -756,8 +764,9 @@ class Interpreter:
 
         export:
             .filename: ...,
-            .format: ... # optional
-            .args: { } # the additional arguments
+            .format: ...  # optional
+            .args: { }    # the additional arguments
+            .comment: ... # a comment (single or multiple line) that will set at the top
             .do: {...} or []
         """
         filename = self.evaluate_expression(entry['.filename'])
@@ -766,11 +775,12 @@ class Interpreter:
 
         format = entry.get('.format')  # get the export format, if there
         kwargs = entry.get('.args') or {}  # arguments
+        comment = entry.get('.comment')
         tree = self.process_node(entry['.do'])
 
         # work out the actual format, and export
         actual_format = get_format(filename, format)
-        file_output = serialize(tree, actual_format, **kwargs)
+        file_output = serialize(tree, actual_format, comment=comment, **kwargs)
 
         with open(full_filename, 'w') as f:
             f.write(file_output)
@@ -804,11 +814,10 @@ class Interpreter:
         Create a function
         A function is a block with a name, arguments and a sequence, which returns a subtree.
 
-        block = {
-            ".name": "",
-            ".args": [...],
-            ".do": [...]
-        }
+        .function:
+            .name: "",
+            .args": [...],
+            .do": [...]
         """
         name = entry['.name']
         # print("Function created with its name!", name)
