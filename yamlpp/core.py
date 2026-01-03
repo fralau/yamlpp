@@ -775,7 +775,7 @@ class Interpreter:
 
         format = entry.get('.format')  # get the export format, if there
         kwargs = entry.get('.args') or {}  # arguments
-        comment = entry.get('.comment')
+        comment = self.evaluate_expression(entry.get('.comment'))
         tree = self.process_node(entry['.do'])
 
         # work out the actual format, and export
