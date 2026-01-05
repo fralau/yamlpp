@@ -18,5 +18,6 @@ _export/
 
 # editor
 .vscode
+.crossnote
 
 

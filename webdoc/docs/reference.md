@@ -111,14 +111,15 @@ Each construct is defined below with its purpose and an example.
 
 ### Variables
 
+
 #### `.context`
-**Definition**: A mapping that defines a local scope of variables.
+**Definition**: A mapping that defines a local scope of variables or functions.
 
 You can define a `.context` block at any node of the tree.
 
 !!! Warning "Scope of the definitions"
-    The variables defined have a **scope**: they are valid for all the sibling nodes and their descendents
-    (but are not accessible in any part of the tree that is higher than the `.context` block.)
+    The variables defined here have a **lexical scope**: they are visible to all sibling nodes and their descendants,  
+    but **not** to any part of the tree *above* the `.context` block.
 
 **Example**:
 ```yaml
@@ -128,23 +129,26 @@ You can define a `.context` block at any node of the tree.
 
 message: "{{ greeting }}, {{ name }}!"
 ```
+
 **Output**:
 ```yaml
 message: "Hello, Alice!"
 ```
 
+
+
 #### `.define`
-**Definition**: A mapping that adds variables to the current scope.
+**Definition**: A mapping that adds variables to the *current* scope.
 
 You can define a `.define` block at any node of the tree.
 
 !!! Note "Does not change the scope"
-    This contruct does not change the **scope**. It complements the existing one.
+    This construct does **not** introduce a new scope.  
+    It augments the existing one.
 
-    Here are two use cases:
-      1. Complementing a current scope within the same YAMLpp file.
-      2. Complementing the scope of the parent file, when an external file is loaded.
-
+    Typical use cases:
+      1. Extending the current scope within the same YAMLpp file.  
+      2. Extending the scope of a parent file when an external file is loaded.
 
 **Example**:
 ```yaml
@@ -154,10 +158,13 @@ You can define a `.define` block at any node of the tree.
 
 message: "{{ greeting }}, {{ name }}!"
 ```
+
 **Output**:
 ```yaml
 message: "Hello, Alice!"
 ```
+
+
 
 ### Control structures
 
@@ -412,10 +419,12 @@ This makes variables and filters from `module.py` available in Jinja2 expression
 
 
 
-#### `.function`
-**Definition**: Define a reusable function with arguments and a body. Arguments are positional.
 
-**Caution**: These functions are not available "as-is" inside of Jinja expressions.
+#### `.function`
+**Definition**: Define a reusable function with arguments and a body. Arguments are positional.  
+A `.function` construct is declarative; it is stored as‑is (unexecuted) in the context.
+
+**Caution**: These functions are not available “as‑is” inside Jinja expressions.
 
 **Example**:
 ```yaml
@@ -429,17 +438,37 @@ This makes variables and filters from `module.py` available in Jinja2 expression
 
 
 #### `.call`
-**Definition**: Invoke a previously defined function with arguments.  
+**Definition**: Invoke a previously defined `.function` construct, with arguments.
+
+This is the moment when the `.function` body is executed.  
+Execution happens within the context **as it existed at the time the `.function` was defined**,  
+as if the body had been executed at that moment.
+
+A `.call` creates a temporary execution context (a new frame).  
+This frame contains:
+
+- the captured environment (closure)  
+- the function arguments  
+- any inner declarations  
+
+The frame is destroyed immediately after the function returns.
+
+Because of this model, an inner function can be called *from within* its enclosing function,  
+but it is **never visible to the caller** outside that function’s lexical scope.
+
 **Example**:
 ```yaml
 .call:
   .name: "greet"
   .args: ["Alice"]
 ```
+
 **Output**:
 ```yaml
 message: "Hello Alice!"
 ```
+
+
 
 
 

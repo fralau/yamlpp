@@ -2,6 +2,7 @@
 Core application for the YAMLpp interpreter
 
 (C) Laurent Franceschetti, 2025
+
 """
 
 import os, sys
@@ -238,6 +239,10 @@ class Interpreter:
         """
         return self.load(text, is_text=True, render=render)
 
+
+    def load_tree(self, tree:Node):
+        "Load a tree into the environment"
+        self._initial_tree = tree
 
 
     def _reset_environment(self):
@@ -476,6 +481,7 @@ class Interpreter:
         
         # find the handler method:
         method_name = f"handle_{keyword[1:]}"
+        err_intro = f"Method {method_name} > " # for error handling
         if hasattr(self, method_name):
             # call the handler
              method = getattr(self, method_name)
@@ -486,9 +492,9 @@ class Interpreter:
             return method(entry)
         except YAMLppError as e:
             if e.line_no != 0:
-                raise YAMLppError(e.node, e.err_type, e.message)
+                raise YAMLppError(e.node, e.err_type, err_intro + e.message)
             else:
-                raise YAMLppError(entry.value, e.err_type, e.message)
+                raise YAMLppError(entry.value, e.err_type, err_intro + e.message)
         except ValueError as e:
             raise YAMLppError(entry.value, Error.VALUE, e)
         except IndexError as e:
@@ -545,14 +551,16 @@ class Interpreter:
         to create a new scope.
         """
         new_scope: Dict[str, Any] = {}
-        if isinstance(params_block, dict):
+        if params_block is None:
+            params_block = {}
+        elif isinstance(params_block, dict):
             for key, value in params_block.items():
                 # print("Key:", key)
                 assert isinstance(self.stack, Stack), f"the stack is not a Stack but '{type(self.stack).__name__}'"
                 # normalize the result, so that it's properly managed as a variable
                 new_scope[key] = normalize(self.process_node(value))
         else:
-            raise ValueError(f"A parameter block must be a dictionary found: {type(params_block).__name__}")
+            raise ValueError(f"A scope frame must be a dictionary found: {type(params_block).__name__}")
         
         return new_scope
 
@@ -814,6 +822,8 @@ class Interpreter:
         Create a function
         A function is a block with a name, arguments and a sequence, which returns a subtree.
 
+        This captures the context
+
         .function:
             .name: "",
             .args": [...],
@@ -821,7 +831,9 @@ class Interpreter:
         """
         name = entry['.name']
         # print("Function created with its name!", name)
-        self.stack[name] = entry.value
+        # self.stack[name] = entry.value
+        function_context = {"function": entry.value, "capture": self.stack.capture}
+        self.stack[name] = function_context
         return None
 
         
@@ -830,19 +842,22 @@ class Interpreter:
     def handle_call(self, entry:MappingEntry) -> Node:
         """
         Call a function, with its arguments
-        block = {
-            ".name": "",
-            ".args": {},
-        }
+
+        .call
+            .name: "",
+            .args": [...]
         """
         name = entry['.name']
         # print(f"*** CALLING {name} ***")
         try:
-            function = MappingEntry(name, self.stack[name])
+            function_context = MappingEntry(name, self.stack[name])
         except KeyError:
             raise YAMLppError(entry, Error.KEY, f"Function '{name}' not found!")
-        # assign the arguments
         
+        function = function_context['function']
+        capture  = function_context['capture']
+        
+        # assign the arguments
         formal_args = function['.args']
         args = entry['.args']
         # evaluate each argument:
@@ -878,13 +893,20 @@ class Interpreter:
             new_block.move_to_end('.context', last=False) # brigng first
         else:
             raise TypeError("Invalid .do block")
-        # print("Context:", list(assigned_args.keys()))
-        # print(new_block)
-        r = self.process_node(new_block)
-        if isinstance(r, (list, CommentedSeq)):
-            r = collapse_seq(r)
-            print(r)
-        return r
+
+        # Old procedure
+        # r = self.process_node(new_block)
+        #  if isinstance(r, (list, CommentedSeq)):
+        #    r = collapse_seq(r)
+        #    print(r)
+        # return r
+
+        # At this point we need to create a new interpreter, with that context
+        i = Interpreter()
+        i.load_tree(new_block)
+        i.stack.push(capture)
+        return i.render_tree()
+
 
 
     # ---------------------

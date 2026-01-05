@@ -1,6 +1,10 @@
 """
 A minimal stack for holding for variables,
 behaving as a dictionary
+
+
+
+
 """
 from typing import Any, Dict, List, Optional
 from collections.abc import MutableMapping
@@ -52,6 +56,9 @@ class Stack(MutableMapping):
             raise RuntimeError("Cannot pop the base stack")
 
     def _merged(self) -> Dict[str, Any]:
+        """
+        Merge the frames (by default all the frames in the stack)
+        """
         if self._dirty or self._cache is None:
             merged: Dict[str, Any] = {}
             for scope in self._stack:
@@ -59,6 +66,27 @@ class Stack(MutableMapping):
             self._cache = merged
             self._dirty = False
         return self._cache
+    
+    @property
+    def capture(self):
+        """
+        Capture of the current dynamic environment (`self.stack`).
+
+        Returns a snapshot of the flattened environment produced by
+        `_merged()` at the moment of access.
+
+        This method is general-purpose: it provides a point-in-time
+        environment snapshot for any consumer of the Stack.
+
+        In the specific case of the YAMLpp interpreter, this snapshot is
+        to be stored inside a `.function` closure as its definition-time
+        environment, and to be used later when the function is invoked
+        via `.call`.
+        """
+        return self._merged()
+
+
+
 
 
     # --- Mapping protocol ---
@@ -95,3 +123,40 @@ class Stack(MutableMapping):
 
     def __copy__(self) -> str:
         return self.copy()
+    
+
+
+# class CassetteRecorder():
+#     """
+#     CassetteRecorder (implemented with two stacks)
+#     """
+
+#     def __init__(self, initial:dict={}) -> None:
+#         self._left = Stack(initial)
+#         self._right = Stack()
+
+#     def record(self, params: Dict[str, Any]) -> None:
+#         "Move one step and record a dictionary on the stack"
+#         self._left.push(params)
+
+#     @property
+#     def current(self) -> Stack:
+#         "The head of the cassette recorder"
+#         return self._left
+    
+#     def back(self) -> None:
+#         "Rewind one step"
+#         try:
+#             last = self._left.pop()
+#         except IndexError:
+#             raise StopIteration
+#         self._right.push(last)
+
+#     def forward(self) -> None:
+#         "Forward one step"
+#         try:
+#             next = self._right.pop()
+#         except IndexError:
+#             raise StopIteration
+#         self._left.push(next)
+
