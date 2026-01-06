@@ -141,7 +141,7 @@ class YAMLppError(GeneralYAMLppError):
     Custom exception connected to the YAMLpp algorithm.
     Extracts line number and line text directly from the node.
     """
-    def __init__(self, node, err_type: Error, message: str):
+    def __init__(self, node, err_type: Error, message: str, filename:str=''):
         if isinstance(node, (CommentedMap, CommentedSeq)):
             line_no = get_line_number(node) 
         else:
@@ -150,6 +150,9 @@ class YAMLppError(GeneralYAMLppError):
         self.node = node
         self.err_type = err_type
         self.message = message
+        self.filename = filename
+        if filename:
+            message = f"{filename}: {message}"
         super().__init__(line_no, err_type, message)
 
 

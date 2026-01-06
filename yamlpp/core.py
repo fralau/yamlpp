@@ -166,6 +166,7 @@ class Interpreter:
         self._dirty = True
         self._functions = functions
         self._filters = filters
+        self._source_file = filename
         
         # working directory
         self._source_dir = source_dir or os.getcwd()
@@ -217,12 +218,11 @@ class Interpreter:
         self._yamlpp, self._initial_tree = load_yaml(source, is_text)
         if validate:
             validate_node(self._initial_tree)
-        self._reset_environment()
 
         # set the source file (if defined)
-        self._source_file = ''
         if not is_text:
             self._source_file = source
+        self._reset_environment()
 
         if render:
             self._tree = self.render_tree()
@@ -243,6 +243,7 @@ class Interpreter:
     def load_tree(self, tree:Node):
         "Load a tree into the environment"
         self._initial_tree = tree
+        self._reset_environment()
 
 
     def _reset_environment(self):
@@ -255,6 +256,7 @@ class Interpreter:
         assert isinstance(env.globals, Stack)
         env.globals.push(GLOBAL_CONTEXT)
         env.globals.update(self._functions)
+        env.globals['__SOURCE_FILE__'] = self.source_file # the source file
         env.filters = Stack(env.filters)
         env.filters.update(self._filters)
         assert isinstance(env.filters, Stack)
@@ -424,7 +426,7 @@ class Interpreter:
                     try:
                         r = self._despatch(key, entry)
                     except SQLOperationalError as e:
-                        raise YAMLppError(node, Error.SQL, e)
+                        self.raise_error(node, Error.SQL, e)
                 else:
                     # normal YAML key
                     try:
@@ -433,7 +435,7 @@ class Interpreter:
                         # produce the result
                         r = {result_key: self.process_node(value)}
                     except JinjaExpressionError as e:
-                        raise YAMLppError(node, Error.EXPRESSION, str(e))
+                        self.raise_error(node, Error.EXPRESSION, str(e))
                 # Decide what to do with the result
                 # Typically, .foreach returns a list
                 if r is None:
@@ -492,17 +494,17 @@ class Interpreter:
             return method(entry)
         except YAMLppError as e:
             if e.line_no != 0:
-                raise YAMLppError(e.node, e.err_type, err_intro + e.message)
+                self.raise_error(e.node, e.err_type, err_intro + e.message)
             else:
-                raise YAMLppError(entry.value, e.err_type, err_intro + e.message)
+                self.raise_error(entry.value, e.err_type, err_intro + e.message)
         except ValueError as e:
-            raise YAMLppError(entry.value, Error.VALUE, e)
+            self.raise_error(entry.value, Error.VALUE, e)
         except IndexError as e:
-            raise YAMLppError(entry.value, Error.INDEX, e)
+            self.raise_error(entry.value, Error.INDEX, e)
         except TypeError as e:
-            raise YAMLppError(entry.value, Error.TYPE, e)
+            self.raise_error(entry.value, Error.TYPE, e)
         except Exception as e:
-            raise YAMLppError(entry.value, Error.OTHER, e)
+            self.raise_error(entry.value, Error.OTHER, e)
 
     def evaluate_expression(self, expr: str) -> Node:
         """
@@ -538,7 +540,13 @@ class Interpreter:
         except (ValueError, SyntaxError):
             return r
 
-    
+    def raise_error(self, node, err_type: Error, message: str):
+        """
+        Raises a YAMLpp error.
+        Extracts line number and line text directly from the node.
+        Automatically adds the last loaded filename to the message
+        """
+        raise YAMLppError(node, err_type, message, self.stack['__SOURCE_FILE__'])
 
     # -------------------------
     # Specific handlers (after dispatcher)
@@ -686,7 +694,7 @@ class Interpreter:
             return result
         else:
             msg = f"Unexpected expression {iterable_expr} ({result}): it returned a {type(result).__name__} instead of a sequence (or map)."
-            raise YAMLppError(entry.value, Error.EXPRESSION, msg)
+            self.raise_error(entry.value, Error.EXPRESSION, msg)
 
 
     def handle_switch(self, entry:MappingEntry) -> Node:
@@ -744,6 +752,7 @@ class Interpreter:
         }
         """
         # print(".load is recognized", entry.key, entry.value)
+        CALLING_FILENAME = self.stack['__SOURCE_FILE__']
         if isinstance(entry.value, str):
             filename = self.evaluate_expression(entry.value)
             format = None
@@ -754,17 +763,22 @@ class Interpreter:
             format = entry.get('.format') # get the export format, if there 
             kwargs = entry.get('.args') or {} # arguments
         
+        # assign new file
+        self.stack['__SOURCE_FILE__'] = filename
         try:
             full_filename = safe_path(self.source_dir, filename)
         except FileNotFoundError as e:
-            raise YAMLppError(entry.value, Error.FILE, e)  
+            self.raise_error(entry.value, Error.FILE, e)  
         actual_format = get_format(filename, format)
         with open(full_filename, 'r') as f:
             text = f.read()
         # read the file
         data = deserialize(text, actual_format, **kwargs)
         # _, data = load_yaml(full_filename)
-        return self.process_node(data)
+        r = self.process_node(data)
+        # reassign the source_file
+        self.stack['__SOURCE_FILE__'] = CALLING_FILENAME
+        return r
 
     def handle_export(self, entry: MappingEntry) -> None:
         """
@@ -808,7 +822,7 @@ class Interpreter:
         try:
             full_filename = safe_path(self.source_dir, filename)
         except FileNotFoundError as e:
-            raise YAMLppError(entry.value, Error.FILE, e)  
+            self.raise_error(entry.value, Error.FILE, e)  
         # full_filename = os.path.join(self.source_dir, filename)
         variables, filters = get_exports(full_filename)
         # note how we use update(), since we add to the local scope:
@@ -834,7 +848,7 @@ class Interpreter:
         entry['.do']
         formal_args = entry['.args']
         if not isinstance(formal_args, list):
-            raise YAMLppError(entry, Error.TYPE, 
+            self.raise_error(entry, Error.TYPE, 
                               f"Function {name}'s formal args must be a sequence (is {type(formal_args).__name__})")
         function_context = {"function": entry.value, "capture": self.stack.capture}
         # insert on stack
@@ -857,7 +871,7 @@ class Interpreter:
         try:
             function_context = MappingEntry(name, self.stack[name])
         except KeyError:
-            raise YAMLppError(entry, Error.KEY, f"Function '{name}' not found!")
+            self.raise_error(entry, Error.KEY, f"Function '{name}' not found!")
         
         function = function_context['function']
         capture  = function_context['capture']
@@ -871,7 +885,7 @@ class Interpreter:
         if isinstance(args, list):
             # print("args:", args)
             if len(args) != len(formal_args):
-                raise YAMLppError(entry, 
+                self.raise_error(entry, 
                                 Error.ARGUMENTS,
                                 f"No of arguments not matching, expected {len(formal_args)}, found {len(args)}")
             assigned_args = dict(zip(formal_args, args))
@@ -879,7 +893,7 @@ class Interpreter:
         elif isinstance(args, dict):
             if set(args) != set(formal_args):
                 diff = set(args) ^ set(formal_args)
-                raise YAMLppError(entry,
+                self.raise_error(entry,
                                   Error.ARGUMENTS,
                                   f"Arguments not matching, differences: {diff}")
             assigned_args = args
@@ -951,7 +965,7 @@ class Interpreter:
         try:
             rows = sql_query(engine, query)
         except (SQLOperationalError, RuntimeError) as e:
-            raise YAMLppError(entry.value, Error.SQL, e)     
+            self.raise_error(entry.value, Error.SQL, e)     
         return rows
 
     def handle_exec_sql(self, entry:MappingEntry) -> None:
@@ -1001,7 +1015,7 @@ class Interpreter:
         try:
             check_name(name)
         except Exception as e:
-            raise YAMLppError(entry.value, Error.VALUE, e)
+            self.raise_error(entry.value, Error.VALUE, e)
         language = self.evaluate_expression(entry.get('.language'))
         init = self.evaluate_expression(entry.get('.init'))
         indent = self.evaluate_expression(entry.get('.indent', DEFAULT_INDENT))
@@ -1043,7 +1057,7 @@ class Interpreter:
         check_name(name)
         filename = self.evaluate_expression(entry['.filename'])
         if not self.source_dir:
-            raise YAMLppError(entry.value, Error.FILE, "Cannot save, this interpreter has no default dir.")
+            self.raise_error(entry.value, Error.FILE, "Cannot save, this interpreter has no default dir.")
         full_filename = get_full_filename(self.source_dir, filename)
         assert full_filename
         # print("Full filename:", full_filename)

@@ -15,11 +15,14 @@ CURRENT_DIR = Path(__file__).parent
 
 SOURCE_DIR = CURRENT_DIR / 'source'
 
-def test_err_0():
+def test_err_content():
     """
     Test YAMLpp program with errors
+
+    Check the content of the error message, including the source filename
     """
-    FILENAME = SOURCE_DIR / 'test1.yaml'
+    SOURCE_FILE = 'test1.yaml'
+    FILENAME = SOURCE_DIR / SOURCE_FILE
     i = Interpreter()
     i.load(FILENAME, render=False) # do not render (modification)
     
@@ -30,11 +33,17 @@ def test_err_0():
     
 
     with pytest.raises(YAMLppError) as e:
-        tree = i.tree
-    assert "not contain '.cases'" in str(e.value)
-    assert "Line 10" in str(e)
+        i.render_tree()
+    msg = str(e.value)
+    print("ERROR:", msg)
+    err_msg_content = ["not contain "
+                       "'.cases'", 
+                       "Line 10", 
+                       FILENAME]
+    for s in err_msg_content:
+        assert str(s) in msg, f"{s} not found in error message: {msg}"
 
-def test_err_1():
+def test_err_duplicate_key():
     """
     Test a duplicate key
     """
