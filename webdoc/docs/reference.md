@@ -53,18 +53,23 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 
 - **Jinja**: The templating engine that is used to calculate ➙ values in YAMLpp (see [documentation](https://jinja.palletsprojects.com/)).
 
-- **Module**: An imported piece of Python code (file or package) that provides variables, functions and [filters](https://jinja.palletsprojects.com/en/stable/templates/#filters) to the ➙ Jinja environment.
+- **Module**: An imported piece of Python code (file or package) that provides variables, 
+  ➙ Python functions and [filters](https://jinja.palletsprojects.com/en/stable/templates/#filters) to the ➙ Jinja environment, for evaluating ➙ expressions.
+
+- **Python Function**: a function (in the sense of the language Python) that can be used in
+  ➙ expressions.
+  
 
 - **Frame**: a mapping of variables and functions, to be used
   by YAMLpp when evaluating Jinja expressions.
 
 - **Frame Stack**: the dynamically generated stack of all ➙ frames currently active. The stack is _not_ dependent on the structure of the data tree; it is built by explicit ➙ constructs found on that tree, such as importing a ➙ module, or creating a new ➙ frame.
 In other words, if none of these constructs are found in a
-tree, the frame stack does not change (it always exposes the same
-frame).
+tree, the frame stack remains the same (all variables are stored in that frame).
 
 - **Variable**: an item stored a frame;
-  it has a name (➙ key) and a ➙ value.
+  it has a name (➙ key) and a ➙ value. A variable can be a ➙ scalar, ➙ a mapping, ➙ a sequence,
+  a YAMLpp ➙ function, or a ➙ Python function.
 
 - **(Lexical) Scope**: the filter saying which variables the
   YAMLpp program currently
@@ -76,7 +81,7 @@ frame).
 
 - **Function**: in YAMLpp's terminology, it is a variable that
   refers to a sequence of YAMLpp constructs, with specified
-  arguments. 
+  arguments. A function is computed only when it is called.
 
 - **Context**: the projection (snapshot) of the frame stack
   at a specific moment, showing all variables visible in the
@@ -145,11 +150,12 @@ Each construct is defined below with its purpose and an example.
 ### Variables
 
 #### `.define`
-**Definition**: A mapping that adds variables to the *current* scope.
+**Definition**: A construct that adds variables to the *current* scope.
 
-You can define a `.define` block at any node of the tree.
+You can insert a `.define` block at any node of the tree.
 
-This is the default command you use to define variables.
+!!! Important
+    `.define` is the default construct you use to define variables.
 
 
 
@@ -184,30 +190,38 @@ You can define variables directly within a `.local` construct,
 without having to use an additional `.define` construct.
 
 !!! Warning "Scope of the definitions"
-    The variables defined here have a **lexical scope**: they are visible to all sibling nodes and their descendants,  
+    The variables defined here have a **lexical scope**: they are visible to all sibling nodes 
+    in the tree and their descendants,  
     but **not** to any part of the tree *above* the `.local` block.
 
-!!! Note "Technical Note"
-  What the `.local` construct does, under the hood,
-  is that it pushes a new frame on the the frame stack
-  (which contains the variables and functions).
-  When the sequence in which the `.local` construct
-  ends, the frame is popped.
+!!! Note "Implementation Note"
+    What the `.local` construct does, under the hood,
+    is that it pushes a new frame on the the frame stack
+    (which contains the variables, functions and Python functions).
+    When the sequence or mapping in which the `.local` construct is found
+    ends, the frame is removed.
 
 
 
 **Example**:
 ```yaml
-.local:
-  greeting: "Hello"
-  name: "Alice"
+new:
+  .local:
+    greeting: "Hello"
+    name: "Alice"
 
-message: "{{ greeting }}, {{ name }}!"
+  message: "{{ greeting }}, {{ name }}!"
+
+outside:
+ # Here the variables `greeting` and `name` are not visible 
 ```
 
 **Output**:
 ```yaml
-message: "Hello, Alice!"
+new:
+  message: "Hello, Alice!"
+
+outside:
 ```
 
 

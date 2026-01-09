@@ -1,15 +1,15 @@
-# Expanding YAMLpp with External Modules
+# Expanding YAMLpp with Python Modules
 
 ## Purpose of a module
 
-It can be useful to add new **functions** to the expressions of YAMLpp to:
+It can be useful to add new **functions** (in the Python sense) to the [expressions](reference.md#yamlpp) of YAMLpp to:
 
 1. Make it more expressive, for example by adding functions on strings, paths, mathematical objects, etc.
 2. Extract data from other sources such as config files and databases.
 
 YAMLpp offers the possibility of using external Python modules that exports those functions.
 
-## Example 1: Adding a function and a filter
+## Example 1: Adding a function and a filter to expressions
 
 ### Problem
 Suppose we want to have expressions that emphasize the name for a user:
