@@ -26,7 +26,7 @@ that argument is implicit and no parentheses are needed.
 This is what the YAMLpp code should look like.
 
 ```yaml
-.frame:
+.local:
   module: module1.py
   name: Joe
   sentence: "Hello world!"
@@ -109,7 +109,7 @@ To do that we would need an expression that contains a call to a simple
 function that returns a list of live machines we need to deploy.
 
 ```yaml
-.frame
+.local
     servers = "{{ servers('live') }}"
     ...
 ```
@@ -120,7 +120,7 @@ function that returns a list of live machines we need to deploy.
     into a YAML sequence.
 
 To do that, we need a ** module**, written in Python, and import it before using it 
-(here, before the `.frame` construct):
+(here, before the `.local` construct):
 
 ```yaml
 .import_module: "my_module.py

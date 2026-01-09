@@ -234,7 +234,7 @@ def test_servers_to_config(tmp_path):
     .name: db
     .url: "sqlite:///$filename"
                        
-.frame:
+.local:
     servers:
         .load_sql:
             .engine: db

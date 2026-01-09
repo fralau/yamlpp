@@ -19,7 +19,7 @@ Here is a simple example:
 
 **YAMLpp**:
 ```yaml
-.frame:
+.local:
   name: "Alice"
 
 message: "Hello, {{ name }}!"
@@ -33,7 +33,7 @@ message: "Hello, Alice!"
 ### General principles
 
 The language is composed of **constructs**, which are denoted keys starting with a dot (`.`), such
-as `.frame`, `.if`, `.switch`, etc.
+as `.local`, `.if`, `.switch`, etc.
 
 The YAMLpp preprocessor uses these constructs modify the tree, and the constructs disappear.
 
@@ -93,9 +93,9 @@ print(i.yaml)
 
 | Construct            | Purpose                                                            | Minimal Example                                                                                     |
 | -------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| **`.frame`**         | Define local variables valid for siblings and descendants.         | .frame:<br>  name: "Alice"<br>message: "Hello {{ name }}"                                           |
+| **`.local`**         | Define local variables valid for siblings and descendants.         | .local:<br>  name: "Alice"<br>message: "Hello {{ name }}"                                           |
 | **`.do`**            | Execute a sequence or map of instructions.                         | .do:<br>  - step: "Init"<br>  - step: "Run"                                                         |
-| **`.foreach`**       | Iterate over values with a loop body.                              | .frame:<br>  items: [1,2]<br>.foreach:<br>  .values: [x, items]<br>  .do:<br>    - val: "{{ x }}"   |
+| **`.foreach`**       | Iterate over values with a loop body.                              | .local:<br>  items: [1,2]<br>.foreach:<br>  .values: [x, items]<br>  .do:<br>    - val: "{{ x }}"   |
 | **`.switch`**        | Branch to a different node based on an expression and cases.       | .switch:<br>  .expr: "{{ color }}"<br>  .cases:<br>    red: {msg: "Stop"}<br>  .default: {msg: "?"} |
 | **`.if`**            | Conditional node creation with `then` and `else`.                  | .if:<br>  .cond: "{{ x>0 }}"<br>  .then: {res: "Pos"}<br>  .else: {res: "Neg"}                      |
 | **`.load`**          | Insert and preprocess another YAMLpp (or YAML) file.               | .import_module: "other.yaml"                                                                        |

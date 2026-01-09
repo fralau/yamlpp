@@ -168,7 +168,7 @@ message: "Hello, Alice!"
 ```
 
 
-#### `.frame`
+#### `.local`
 **Definition**: Creates a new **scope** for variables or functions.
 
 In that new scope, the variables and functions already created
@@ -178,27 +178,27 @@ They do not influence the rest of the tree.
 Once the interpreter will have finished walking that
 part of the tree, the scope will die.
 
-You can define a `.frame` block at any node of the tree.
+You can define a `.local` block at any node of the tree.
 
-You can define variables directly within a `.frame` construct,
+You can define variables directly within a `.local` construct,
 without having to use an additional `.define` construct.
 
 !!! Warning "Scope of the definitions"
     The variables defined here have a **lexical scope**: they are visible to all sibling nodes and their descendants,  
-    but **not** to any part of the tree *above* the `.frame` block.
+    but **not** to any part of the tree *above* the `.local` block.
 
 !!! Note "Technical Note"
-  What the `.frame` construct does, under the hood,
+  What the `.local` construct does, under the hood,
   is that it pushes a new frame on the the frame stack
   (which contains the variables and functions).
-  When the sequence in which the `.frame` construct
+  When the sequence in which the `.local` construct
   ends, the frame is popped.
 
 
 
 **Example**:
 ```yaml
-.frame:
+.local:
   greeting: "Hello"
   name: "Alice"
 
@@ -269,7 +269,7 @@ However, if the expression results in a map, `.foreach` just returns the map.
 
 **Example**:
 ```yaml
-.frame:
+.local:
   items: [1, 2, 3]
 
 .foreach:
@@ -762,7 +762,7 @@ yamlpp test1.yaml --set env=prod count=5
 Supposing that your YAMLpp file contained:
 
 ```yaml
-.frame
+.local
   env: test
   count: 3
   foo: barbaz
@@ -770,7 +770,7 @@ Supposing that your YAMLpp file contained:
 
 It will contain:
 ```yaml
-.frame
+.local
   env: prod
   count: 5
   foo: barbaz
@@ -779,7 +779,7 @@ It will contain:
 If the tree started with a sequence, a top level map will be created:
 
 ```yaml
-.frame
+.local
   env: prod
   count: 5
 .do

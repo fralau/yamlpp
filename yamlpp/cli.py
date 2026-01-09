@@ -122,7 +122,7 @@ def main():
         # update the environment with the passed variables
         interpreter.set_frame(variables)
         if len(variables):
-            output = serialize(interpreter.frame)
+            output = serialize(interpreter.local)
             err_console.print(format_code(output, title='Initial context'))
         
         # Show raw

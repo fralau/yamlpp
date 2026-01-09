@@ -18,7 +18,7 @@
   that contain a Jinja expression **must** be quoted: 
     - ❌ Incorrect: `message: Hello, {{ name }}!`
     - ✅ Correct: `message:"Hello, {{ name }}!"`
-2. **Undefined Variables**: A variable used in an expression is not defined in the current context or scope. Ensure all variables are declared within `.frame` or passed correctly.  
+2. **Undefined Variables**: A variable used in an expression is not defined in the current context or scope. Ensure all variables are declared within `.local` or passed correctly.  
 3. **Duplicate keys**: A mapping (dictionary) can have only one key of each type.
    If a key is repeated, the parser will raise an error.
    If you are using the same key two times or more, it's likely that you should
@@ -31,5 +31,5 @@
 ## Debugging Tips
 - Check error messages carefully for line numbers (in the YAML file) and hints 
 - Use minimal examples to isolate issues  
-- Add Jinja variables that use variables defined in `.frame` to print intermediate values  
+- Add Jinja variables that use variables defined in `.local` to print intermediate values  
 - Validate YAML files with external linters   

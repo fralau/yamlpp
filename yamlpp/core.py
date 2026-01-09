@@ -144,7 +144,7 @@ class Interpreter:
     # When you create a new construct:
     #  - Create the handler
     #  - Register it in this list
-    CONSTRUCTS = ('.frame','.define',
+    CONSTRUCTS = ('.local','.define',
                   '.do', '.foreach', '.switch', '.if', 
                   '.load', '.import', '.import_module', 
                   '.function', '.call',  
@@ -298,11 +298,11 @@ class Interpreter:
         return self._initial_tree
         
     @property
-    def frame(self) -> Node:
-        "Return the top-level .frame section or None"
+    def local(self) -> Node:
+        "Return the top-level .local section or None"
         # print("INITIAL TREE")
         # print(self.initial_tree)
-        return self.initial_tree.get('.frame')
+        return self.initial_tree.get('.local')
 
     @property
     def yamlpp(self) -> str:
@@ -345,7 +345,7 @@ class Interpreter:
     # -------------------------
     def set_frame(self, arguments:dict):
         """
-        Update the first '.frame' of the initial tree with a dictionary (key, value pairs).
+        Update the first '.local' of the initial tree with a dictionary (key, value pairs).
 
         Literals are turned into objects (strings remain strings).
         """
@@ -356,15 +356,15 @@ class Interpreter:
         if isinstance(itree, CommentedSeq):
             # Special case: the tree starts with a sequence
             new_start = CommentedMap({
-                '.frame': arguments,
+                '.local': arguments,
                 '.do': itree
             })
             self.initial_tree = new_start
         else:
             # Usual case: a map
-            context = itree.get('.frame', CommentedMap())
+            context = itree.get('.local', CommentedMap())
             context.update(arguments)
-            itree['.frame'] = context
+            itree['.local'] = context
 
     # -------------------------
     # Rendering
@@ -430,8 +430,8 @@ class Interpreter:
             # Dictionary nodes
             # print("Dictionary:", node)
 
-            # Process the .frame block, if any (local scope)
-            params_block = node.get(".frame")
+            # Process the .local block, if any (local scope)
+            params_block = node.get(".local")
             new_context = False
             if params_block:
                 new_context = True
@@ -617,13 +617,13 @@ class Interpreter:
     # Variables
     # ---------------------
 
-    def handle_frame(self, entry:MappingEntry) -> None:
+    def handle_local(self, entry:MappingEntry) -> None:
         """
         Creates a new frame (scope) on the stack, and adds variables.
 
-        Note: you cannot reuse variables defined in the same .frame block.
+        Note: you cannot reuse variables defined in the same .local block.
 
-        .frame:
+        .local:
             ....
 
         """
@@ -647,9 +647,9 @@ class Interpreter:
         Note: you cannot reuse variables defined in the same .export block.
 
         It is useful
-        - when used before the `.frame`in an imported file: for exporting variables
+        - when used before the `.local`in an imported file: for exporting variables
           to the parent context.
-        - after a .frame, for defining new variables, without changing scope
+        - after a .local, for defining new variables, without changing scope
         """# create the scope before doing calculations
         # print("Value:\n", entry.value)
         result = self.process_node(entry.value)
@@ -665,7 +665,7 @@ class Interpreter:
     def handle_emit(self, entry:MappingEntry) -> Node:
         """
         Emits the content of the last stack frame
-        (.frame + .define/.import blocks),
+        (.local + .define/.import blocks),
         excluding non-node types.
         """
         frame = self.stack.peek()
@@ -1042,14 +1042,14 @@ class Interpreter:
             new_block = actions.copy()
         if isinstance(new_block, (CommentedSeq, list)):
             # normal list (or even a plain string), you need to create a dictionary
-            new_block = {'.frame': assigned_args, '.do': new_block}
+            new_block = {'.local': assigned_args, '.do': new_block}
         elif isinstance(new_block, str):
             # str
-            new_block = {'.frame': assigned_args, '.do': new_block}
+            new_block = {'.local': assigned_args, '.do': new_block}
         elif isinstance(new_block, (CommentedMap, dict)):
             # a simple dict
-            new_block['.frame'] = assigned_args
-            new_block.move_to_end('.frame', last=False) # brigng first
+            new_block['.local'] = assigned_args
+            new_block.move_to_end('.local', last=False) # brigng first
         else:
             raise TypeError("Invalid .do block")
 

@@ -50,7 +50,7 @@ def test_err_duplicate_key():
     FIRST_HOST = 'localhost'
     SECOND_HOST = '192.168.1.4'
     source = f"""  
-.frame:
+.local:
   env: test
   host: {FIRST_HOST}
   users: [alice, bob, charlie, michael]

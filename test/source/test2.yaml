@@ -1,5 +1,5 @@
 # This is my comment
-.frame:
+.local:
   env: "test"
   host: "localhost"
   users: [alice, bob, charlie, michael]

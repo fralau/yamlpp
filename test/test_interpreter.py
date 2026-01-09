@@ -23,7 +23,7 @@ def test_01():
     FILENAME = SOURCE_DIR / 'test1.yaml'
     i = Interpreter()
     i.load(FILENAME)
-    assert i.frame is not None, "Context should not be empty"
+    assert i.local is not None, "Context should not be empty"
 
 
     tree = i.tree
@@ -37,7 +37,7 @@ def test_01():
     assert tree.server.url == 'http://test.example.com'
 
     # .foreach: check we have the same users and they have the same roles
-    users = i.frame['users'] # from the source
+    users = i.local['users'] # from the source
     assert [account.name for account in tree.accounts] == users
     assert [account.role for account in tree.accounts] == ['user'] * len(users)
     
@@ -51,9 +51,9 @@ def test_02():
     i = Interpreter()
     i.load(FILENAME, render=False) # suspend rendering
 
-    assert i.frame is not None, "Context should not be empty"
-    i.frame.env = 'dev'
-    i.frame.comment = 'This is added'
+    assert i.local is not None, "Context should not be empty"
+    i.local.env = 'dev'
+    i.local.comment = 'This is added'
 
     tree = i.tree
     r = i.yaml # renders
@@ -104,7 +104,7 @@ def test_import_02():
     i = Interpreter()
     i.load(FILENAME, render=False)
     # modify parameter before rendering
-    i.frame.env = 'prod'
+    i.local.env = 'prod'
 
     tree = i.tree
     r = i.yaml # renders
@@ -145,7 +145,7 @@ def test_rendered_keys():
     "Minimal test for foreach with rendered keys"
 
     yaml_source = """
-.frame:
+.local:
   users:
     - { id: 1, name: joe, role: admin }
     - { id: 2, name: jill, role: user }

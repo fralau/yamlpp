@@ -1,4 +1,4 @@
-.frame:
+.local:
   # this local parameter overrides the global one
   host: "my_host.local"
 

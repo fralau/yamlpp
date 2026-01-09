@@ -46,7 +46,7 @@ def test_buffer_complete(tmp_path):
     EXPORT_FILENAME = 'test.txt'
 
     template = Template("""
-.frame:
+.local:
     meetings:
         - title: Project Kickoff
           date: 2026-01-15
