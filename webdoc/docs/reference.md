@@ -36,7 +36,6 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 
 ### YAMLpp
 
-
 - **Keyword**: A YAML ➙ key preceded by a dot (`.`), which has a meaning in the context of YAMLpp.
 
 - **Construct**: An instruction of YAMLpp ➙ pre-processing instructions that generates
@@ -569,8 +568,7 @@ def_sql:
 ```
 
 **Reference:**  
-SQLAlchemy Engine Creation  
-https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine
+[SQLAlchemy Engine Creation](https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine)
 
 
 

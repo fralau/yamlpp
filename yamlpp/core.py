@@ -510,13 +510,13 @@ class Interpreter:
         
         # find the handler method:
         method_name = f"handle_{keyword[1:]}"
-        err_intro = f"Method {method_name} > " # for error handling
         if hasattr(self, method_name):
             # call the handler
              method = getattr(self, method_name)
         else:
             raise AttributeError(f"Missing handler for {method_name}!")
         # run the method and return the result
+        err_intro = f"{keyword} > " # for error handling
         try:
             return method(entry)
         except YAMLppError as e:
@@ -982,7 +982,7 @@ class Interpreter:
         function_context = {".function": entry.value, ".capture": self.stack.capture}
         # insert on stack
         self.stack[name] = function_context
-        print(f"Saved context for function '{name}':", function_context, file=sys.stderr)
+        # print(f"Saved context for function '{name}':", function_context, file=sys.stderr)
         if self._is_module:
             # The function must also be put into the tree, so that it can be exported
             return {name: function_context}
