@@ -1,5 +1,7 @@
 # YAML File Preprocessor (YAMLpp)
 
+**THIS IS THE LAST VERSION CALLED YAMLPP; THE REPO WILL BE RENAMED AS PROTEIN**
+
 ## Problem
 YAML is an excellent file format but it is essentially static. Sometimes, the content of a YAML file must change according to circumstances (typically when the environment changes or when you have different
 configuratons for test or production, etc.).
