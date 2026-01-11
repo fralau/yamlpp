@@ -1,6 +1,6 @@
 [project]
 name = "protein"
-version = "0.3.3"
+version = "0.5.0"
 description = "Protein: a macro language for data composition and templating"
 readme = "README.md"
 authors = [{ name = "Laurent" }]
