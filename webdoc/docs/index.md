@@ -13,9 +13,11 @@ Manually maintaining different versions with the same boiler-plate data can be t
 
 
 ## Introducing Protein
-What if we had a way to generate a new data file (or more than one) according to a single pattern?
+What if we had a way to generate a new data file (or more than one) according to a single
+set of source data?
 
-The purpose of **Protein** is to help programmers prepare data files from a template, with rules that produce your data tree according to source data. 
+The purpose of **Protein** is to help programmers prepare data files in various formats,
+(JSON, YAML, but also HTML, etc.) with rules that produce your data according to source data. 
 
 It extends standard YAML with constructs for variable declaration, conditionals, iteration, functions, importing and exporting YAML files, and importing Python modules.
 

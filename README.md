@@ -1,18 +1,25 @@
-# YAML File Preprocessor (YAMLpp)
+# Protein, a Data Composer and Templating Tool
 
-**THIS IS THE LAST VERSION CALLED YAMLPP; THE REPO WILL BE RENAMED AS PROTEIN**
 
 ## Problem
-YAML is an excellent file format but it is essentially static. Sometimes, the content of a YAML file must change according to circumstances (typically when the environment changes or when you have different
-configuratons for test or production, etc.).
+Nowadays, a lot of software is piloted by data files, typically JSON or YAML files.
 
-Manually maintaining different versions can be time-consuming and error-prone.
+
+JSON and YAML are excellent file formats but they are essentially static. Sometimes, the content of a file must change according to circumstances (typically when the environment changes or when you have different
+configuratons for test or production, etc.). 
+
+
+Manually maintaining different versions with the same boiler-plate data can be time-consuming and error-prone.
 
 
 ## Introducing YAMLpp
-What if we had a way to generate a new YAML file (or more than one) according to a single pattern?
+What if we had a way to generate a new data file (or more than one) according to a single
+set of source data?
 
-The purpose of **YAML Preprocessor (YAMLpp)** is to help programmers prepare YAML files from a template, with rules that produce the YAML tree according to source data. It extends standard YAML with constructs for variable declaration, conditionals, iteration, functions, importing and exporting YAML files, and importing Python modules.
+The purpose of **Protein** is to help programmers prepare data files in various formats,
+(JSON, YAML, but also HTML, etc.) with rules that produce your data according to source data. 
+
+It extends standard YAML with constructs for variable declaration, conditionals, iteration, functions, importing and exporting YAML files, and importing Python modules.
 
 YAMLpp is a macro language, since it manipulates the YAML tree on which it resides.
 
@@ -91,7 +98,7 @@ print(i.yaml)
 
 
 
-## 🔧 YAMLpp Constructs (Quick Reference)
+## 🔧 A Sample of Protein Constructs
 
 | Construct            | Purpose                                                            | Minimal Example                                                                                     |
 | -------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
