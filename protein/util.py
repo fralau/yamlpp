@@ -484,7 +484,7 @@ def deserialize(text: str, format: str='yaml', *args, **kwargs):
 # -------------------------
 # YAMLpp Schema Validation
 # -------------------------
-SCHEMA_DEFINITION = CURRENT_DIR / "yamlpp_schema.yaml"
+SCHEMA_DEFINITION = CURRENT_DIR / "protein_schema.yaml"
 
 # Load schema and initialize validator
 _, schema = load_yaml(SCHEMA_DEFINITION)
