@@ -172,16 +172,18 @@ steps:
 If this appears inside a Protein template, Jinja will **intercept** the `{{ github.ref }}` portion, attempt to evaluate it, and almost certainly fail—preventing the correct GitHub expression from ever reaching GitHub Actions.
 
 
-### The solution
+### One-off solution
 
 To prevent Jinja from interpreting GitHub’s `${{ ... }}` expressions, you must explicitly tell it to treat that part of the template as literal text.  
-The solution—[as described in the Jinja documentation](https://jinja.palletsprojects.com/en/stable/templates/#escaping)—is to wrap the affected section in a `{% raw %}` / `{% endraw %}` block.
+Ohe solution—[as described in the Jinja documentation](https://jinja.palletsprojects.com/en/stable/templates/#escaping)—is to wrap the affected section in a `{% raw %}` / `{% endraw %}` block.
 
 Everything inside this block is passed through unchanged, allowing Protein to output the exact `${{ github.ref }}` expression that GitHub Actions expects.
 
+!!! Warning "It will work only once"
+    This is an _escape_ technique. If, for some reason, you are interpreting the same
+    string _twice_ in expressions, then Protein will eventually attempt to apply the template.
 
-
-### Example: Protein‑idiomatic GitHub workflow generator
+#### Example: Protein‑idiomatic GitHub workflow generator
 
 ```yaml
 .local:
@@ -213,6 +215,21 @@ jobs:
 
 If you want, I can show the idiomatic pattern for generating **multiple workflow files** using `.foreach` and the collapse rule.
 
+### Permanent solution to avoid interpretation
+
+The solution to guarantee that a string will _never_ be used as a template,
+is to the `#!literal` prefix in front of it, for example:
+
+```yaml
+.text: "#!literal Hello {{ name }}"
+```
+
+This will guarantee that Protein will never consider that string as a template, until
+the value is exported:
+
+- When the string will be output as YAML or JSON, etc., it will appear without the prefix.
+(`Hello {{ name }}`).
+- The [`.write_buffer`](reference.md#write_buffer) construct will also strip the prefix.
 
 
 ### Protein‑idiomatic multi‑workflow generator
@@ -261,4 +278,8 @@ The result is a directory‑like structure:
   build.yml:   "<template output>"
   release.yml: "<template output>"
 ```
+
+
+
+
 

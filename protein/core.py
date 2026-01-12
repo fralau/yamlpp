@@ -25,7 +25,7 @@ from .util import load_yaml, validate_node, parse_yaml, safe_path, print_yaml
 from .util import check_name, get_full_filename
 from .util import to_yaml, serialize, get_format, deserialize, normalize, collapse_seq, collapse_maps
 from .util import CommentedMap, CommentedSeq # Patched versions (DO NOT CHANGE THIS!)
-from .util import extract_identifier
+from .util import extract_identifier, LITERAL_PREFIX, strip_prefix
 from .buffer import render_buffer, Indentation
 from .error import YAMLppError, Error, JinjaExpressionError, YAMLppExitError
 from .import_modules import get_exports
@@ -55,6 +55,7 @@ GLOBAL_CONTEXT = {
     "getenv": os.getenv, # function
     "get_password": keyring.get_password, # function
     "osquery": osquery, # function 
+    "strip_prefix": strip_prefix, # function needed in Jinja2, if the literal prefix must be stripped
         }
 
 
@@ -269,11 +270,11 @@ class Interpreter:
         base_globals = dict(env.globals)
         base_filters = dict(env.filters)
 
-        # Wrap the copies in your Stack
+        # Wrap the copies in our Stack
         env.globals = Stack(base_globals)
         env.filters = Stack(base_filters)
 
-        # Push your own global context (copy!)
+        # Push our own global context (copy!)
         env.globals.push(GLOBAL_CONTEXT.copy())
 
         # Add interpreter-specific functions/filters
@@ -536,12 +537,17 @@ class Interpreter:
         except Exception as e:
             self.raise_error(entry.value, Error.OTHER, e)
 
-    def evaluate_expression(self, expr: str) -> Node:
+    def evaluate_expression(self, expr: str, final:bool=False) -> Node:
         """
         Evaluate a string expression
 
         Evaluate a Jinja2 expression string against the stack.
-        If the expr is not a string, fail miserably.
+
+        Arguments:
+        - expr: the expression to evaluate. If not a string, fail miserably.
+        - final is a boolean that indicates that this is the final evaluation
+          (i.e. the raw value must be returned, without the LITERAL_PREFIX);
+          default: False.
         """
         if expr is None:
             return None
@@ -553,10 +559,19 @@ class Interpreter:
             # str_expr = str(expr)
             raise ValueError(f"Value to be evaluated is not a string: '{expr}'")
 
-        if '{' not in str_expr:
-            # optimization (the expression is plain str, not Jinja)
+        # optimization (the expression is plain str, not Jinja), or it starts with the literal prefix
+        if '{' not in str_expr: 
             return str_expr
         
+        # literal expression
+        if str_expr.startswith(LITERAL_PREFIX):
+            if final:
+                # strip the prefix, for final output
+                return strip_prefix(str_expr)
+            else:
+                # normal case: return as is
+                return str_expr
+            
         template = self.jinja_env.from_string(str_expr)
         # return template.render(**self.stack)
         try:
@@ -1192,7 +1207,8 @@ class Interpreter:
         """
         name = self.evaluate_expression(entry['.name'])
         check_name(name)
-        text = self.evaluate_expression(entry.get('.text', ''))
+        # evaluate with final form (strip literal prefixes)
+        text = self.evaluate_expression(entry.get('.text', ''), final=True)
         indent = self.evaluate_expression(entry.get('.indent', 0))
         # update the content buffer:
         content = self.stack[name]['content']

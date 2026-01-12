@@ -12,7 +12,7 @@ configuratons for test or production, etc.).
 Manually maintaining different versions with the same boiler-plate data can be time-consuming and error-prone.
 
 
-## Introducing YAMLpp
+## Introducing Protein
 What if we had a way to generate a new data file (or more than one) according to a single
 set of source data?
 
@@ -49,7 +49,7 @@ The YAMLpp preprocessor uses these constructs modify the tree, and the construct
 The result is pure YAML.
 
 
-**YAMLpp obeys the rules of YAML syntax:**
+**Protein obeys the rules of YAML syntax:**
 - It provides declarative constructs without breaking YAML syntax. 
 - It allows modular, reusable, and expressive constructs that create YAML files
 
@@ -64,14 +64,14 @@ pip install protein-lang
 
 ### Command-line usage
 ```bash
-yamlpp input.yaml -o output.yaml
+protein input.yaml -o output.yaml
 ```
 - `input.yaml` → your YAML file with YAMLpp directives  
 - `output.yaml` → the fully expanded YAML after preprocessing  
 
 To consult the help:
 ```sh
-yamlpp --help
+protein --help
 ```
 
 

@@ -36,6 +36,17 @@ console = Console()
 # ypp format is considered here equivalent to yaml (to facilitate .load)
 FILE_FORMATS = ['yaml', 'json', 'toml', 'python', 'ypp', 'env']
 
+# The prefix that marks a string as literal (not to be interpreted by Protein)
+LITERAL_PREFIX = "#!literal"
+
+def strip_prefix(s: str, prefix=LITERAL_PREFIX) -> str:
+    """
+    If the string starts with the prefix, strip it and return the rest"
+    (by default, uses the literal prefix).
+    """
+    if isinstance(s, str) and s.startswith(prefix):
+        return s[len(prefix):].lstrip()
+    return s
 
 
 # -------------------------
@@ -190,7 +201,7 @@ class ImmutableYAML(YAML):
     def __setattr__(self, name, value):
         # allow ruamel internals
         if name in {"Reader", "Scanner", "Parser", "Composer",
-                    "Constructor", "Resolver", 'tags'} or name[0] == '_':
+                    "Constructor", "Resolver", 'tags', 'version'} or name[0] == '_':
             super().__setattr__(name, value)
             return
         if getattr(self, "_locked", False):
@@ -252,6 +263,9 @@ def print_yaml(yaml_text: str, filename: str | Path | None = None):
 # Serialization formats
 # -------------------------
 
+
+
+
 def get_format(filename: str, format:str=None) -> str:
     """
     Get the file format of a file, from its filename or explicit format specification.
@@ -278,6 +292,11 @@ def get_format(filename: str, format:str=None) -> str:
 
 
 
+def literal_str_representer(representer, data):
+    "YAML Representer for strings (which excludes literal strings"
+    if isinstance(data, str) and data.startswith(LITERAL_PREFIX):
+        data = data[len(LITERAL_PREFIX):].lstrip()
+    return representer.represent_str(data)
 
 def to_yaml(
     node,
@@ -328,6 +347,9 @@ def to_yaml(
         if preserve_quotes is not None:
             yaml.preserve_quotes = preserve_quotes
 
+
+    yaml.representer.add_representer(str, literal_str_representer)
+
     stream = StringIO()
     yaml.dump(node, stream)
     return stream.getvalue()
@@ -350,10 +372,14 @@ def normalize(node):
     That's the correct way to make sure that the tree can be exported
     to a koine for other formats.
     """
-    if isinstance(node, ScalarString):
+    if isinstance(node, (ScalarString, str)):
         # unwrap ruamel scalar wrappers (e.g. DoubleQuotedScalarString)
-        return str(node)
-    elif isinstance(node, (str, int, float, bool)) or node is None:
+        r = str(node)
+        # remove literal prefix if any
+        if r.startswith(LITERAL_PREFIX):
+            r = r[len(LITERAL_PREFIX):].lstrip()
+        return r
+    elif isinstance(node, (int, float, bool)) or node is None:
         return node
     elif isinstance(node, collections.abc.Mapping):
         return {str(k): normalize(v) for k, v in node.items()}
