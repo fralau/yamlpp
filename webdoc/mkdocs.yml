@@ -1,5 +1,7 @@
-site_name: YAMLpp
-site_description: A macro language for dynamic YAML preprocessing
+site_name: Protein Documentation
+site_description: A macro language for data composition and templating
+site_author: Laurent Franceschetti
+site_url: https://github.com/fralau/protein
 docs_dir: docs   # source directory for documentation
 
 theme:
@@ -15,9 +17,9 @@ theme:
     primary: teal
     accent: teal
 
-repo_url: https://github.com/fralau/yamlpp
+repo_url:   
 edit_uri: edit/main/docs/
-copyright: © Laurent Franceschetti, 2025. Licensed under CC BY-SA 4.0.
+copyright: © Laurent Franceschetti, 2026. Licensed under CC BY-SA 4.0.
 
 nav:
   - Home: index.md

@@ -2,19 +2,19 @@
 
 ## General principles
 
-1. All YAMLpp code must be valid YAML.
+1. All Protein code must be valid YAML.
 2. The YAML parser/renderer is its own validating tool for the language.
-3. Exceptions produced are subclasses of `util.GeneralYAMLppError`.
+3. Exceptions produced are subclasses of `util.GeneralProteinError`.
    When possible, they provide the line number in the source code.
 
 ## Errors Checklist
 1. **YAML Syntax Error**: This is by far the most common error. Invalid YAML can cause preprocessing failures. Validate YAML syntax and directive structure.  
     * Do not forget to add a colon (`:`) after a key,
       when the value is on the following lines.
-1. **Incorrect keywords**: A YAMLpp keyword is a YAML key that starts a construct.
+1. **Incorrect keywords**: A Protein keyword is a YAML key that starts a construct.
    All keywords must start with a dot (`.`), e.g. : `.if`.<br>Any unknown keyword,
    or key not starting with a dot will be ignored.
-4. **Unquoted Jinja expressions**: A YAMLpp file must be a valid YAML file. It means that values
+4. **Unquoted Jinja expressions**: A Protein file must be a valid YAML file. It means that values
   that contain a Jinja expression **must** be quoted: 
     - ❌ Incorrect: `message: Hello, {{ name }}!`
     - ✅ Correct: `message:"Hello, {{ name }}!"`

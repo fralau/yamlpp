@@ -1,4 +1,4 @@
-# Advanced Aspects of YAMLpp
+# Advanced Aspects of Protein
 
 ## The Collapse Rule
 
@@ -7,10 +7,10 @@
 !!! Tip "Important"
     The **Collapse Rule** is key to understand how YAMLLpp results are processed by the `.do` construct.
 
-    It defines how YAMLpp reduces **sequences** of actions into simpler semantic forms.
+    It defines how Protein reduces **sequences** of actions into simpler semantic forms.
     It governs how loop expansions and other generative constructs produce final YAML structures.
 
-    This rule is central to YAMLpp semantics because it ensures that it behaves in a way that
+    This rule is central to Protein semantics because it ensures that it behaves in a way that
     least surprises users.
 
 
@@ -153,8 +153,8 @@ accounts:
 
 ### The issue
 
-When YAMLpp renders a file, it uses Jinja as its templating engine to interpret keys and values.  
-This means that **every occurrence of `{{ ... }}` is treated as a Jinja expression** and evaluated before YAMLpp produces the final YAML output.
+When Protein renders a file, it uses Jinja as its templating engine to interpret keys and values.  
+This means that **every occurrence of `{{ ... }}` is treated as a Jinja expression** and evaluated before Protein produces the final YAML output.
 
 However, the system that ultimately consumes the generated YAML—such as GitHub Actions—may *also* have its own templating syntax. GitHub Actions, for example, uses the form `${{ ... }}` for its expressions. Because this syntax contains Jinja’s own `{{ ... }}` pattern, Jinja will try to evaluate the inner part first.
 
@@ -166,7 +166,7 @@ steps:
     run: 'echo "Current ref is ${{ github.ref }}"'
 ```
 
-If this appears inside a YAMLpp template, Jinja will **intercept** the `{{ github.ref }}` portion, attempt to evaluate it, and almost certainly fail—preventing the correct GitHub expression from ever reaching GitHub Actions.
+If this appears inside a Protein template, Jinja will **intercept** the `{{ github.ref }}` portion, attempt to evaluate it, and almost certainly fail—preventing the correct GitHub expression from ever reaching GitHub Actions.
 
 
 ### The solution
@@ -174,11 +174,11 @@ If this appears inside a YAMLpp template, Jinja will **intercept** the `{{ githu
 To prevent Jinja from interpreting GitHub’s `${{ ... }}` expressions, you must explicitly tell it to treat that part of the template as literal text.  
 The solution—[as described in the Jinja documentation](https://jinja.palletsprojects.com/en/stable/templates/#escaping)—is to wrap the affected section in a `{% raw %}` / `{% endraw %}` block.
 
-Everything inside this block is passed through unchanged, allowing YAMLpp to output the exact `${{ github.ref }}` expression that GitHub Actions expects.
+Everything inside this block is passed through unchanged, allowing Protein to output the exact `${{ github.ref }}` expression that GitHub Actions expects.
 
 
 
-### Example: YAMLpp‑idiomatic GitHub workflow generator
+### Example: Protein‑idiomatic GitHub workflow generator
 
 ```yaml
 .local:
@@ -204,15 +204,15 @@ jobs:
 
 - `.local` appears first and contains only data, not logic.
 - The output file (here `github_workflow`) is a **single mapping key** with a `.template` body.
-- The template uses YAMLpp interpolation (`{{ workflow_name }}`) where appropriate.
+- The template uses Protein interpolation (`{{ workflow_name }}`) where appropriate.
 - GitHub’s own `${{ … }}` syntax is preserved via `{% raw %}`.
-- No unnecessary quoting, no heredocs, no shell tricks — just pure YAMLpp.
+- No unnecessary quoting, no heredocs, no shell tricks — just pure Protein.
 
 If you want, I can show the idiomatic pattern for generating **multiple workflow files** using `.foreach` and the collapse rule.
 
 
 
-### YAMLpp‑idiomatic multi‑workflow generator
+### Protein‑idiomatic multi‑workflow generator
 
 ```yaml
 .local:
@@ -244,7 +244,7 @@ If you want, I can show the idiomatic pattern for generating **multiple workflow
 
 
 - **`.local` first** — pure data, no logic.
-- **Top‑level directory key** (`.github/workflows:`) — YAMLpp treats it as a mapping.
+- **Top‑level directory key** (`.github/workflows:`) — Protein treats it as a mapping.
 - **`.foreach`** produces a *sequence of 1‑key maps*, which collapses into a mapping of workflow files.
 - **Each iteration produces a file** named `"{{ w.name }}.yml"`.
 - **`.template`** emits literal GitHub workflow YAML.

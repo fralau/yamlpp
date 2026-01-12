@@ -6,7 +6,7 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 
 ### General
 
-- **YAMLpp**: A language based on ➙ YAML,
+- **Protein**: A language based on ➙ YAML,
   which ➙ pre-processes a ➙ tree containing ➙ constructs into a plain YAML tree.
 
 - **YAML™**: A data serialization language used in modern computer programs, mainly
@@ -19,7 +19,7 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 - **Tree**: In YAML, a structure made of a node that can point to one or more nodes, and so on.
 
 - **Node**: In YAML, a fundamental unit of data; it can be a ➙ scalar, ➙ sequence or ➙ mapping.
-  In YAMLpp, it can also be an ➙ expression.
+  In Protein, it can also be an ➙ expression.
 
 - **Scalar**: in YAML, a "leaf" in a YAML tree: it can be a numeric value, a string, or a boolean.
 
@@ -34,11 +34,11 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 - **Block** A piece of YAML code containing a ➙ sequence or ➙ mapping, 
   with the  ➙ key on the first line, and the content (node) indented in the following lines. 
 
-### YAMLpp
+### Protein
 
-- **Keyword**: A YAML ➙ key preceded by a dot (`.`), which has a meaning in the context of YAMLpp.
+- **Keyword**: A YAML ➙ key preceded by a dot (`.`), which has a meaning in the context of Protein.
 
-- **Construct**: An instruction of YAMLpp ➙ pre-processing instructions that generates
+- **Construct**: An instruction of Protein ➙ pre-processing instructions that generates
   one or more YAML ➙ nodes. <br>
   All constructs are valid YAML.<br>
   Each construct has a ➙ keyword starting with a dot (`.`) and is presented as a ➙ block. <br>
@@ -50,7 +50,7 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
 
 - **Expand / Render**: To evaluate a ➙ Jinja expression and return a ➙ node.
 
-- **Jinja**: The templating engine that is used to calculate ➙ values in YAMLpp (see [documentation](https://jinja.palletsprojects.com/)).
+- **Jinja**: The templating engine that is used to calculate ➙ values in Protein (see [documentation](https://jinja.palletsprojects.com/)).
 
 - **Module**: An imported piece of Python code (file or package) that provides variables, 
   ➙ Python functions and [filters](https://jinja.palletsprojects.com/en/stable/templates/#filters) to the ➙ Jinja environment, for evaluating ➙ expressions.
@@ -60,7 +60,7 @@ _Terms in the definitions that are defined in this glossary are preceded by an a
   
 
 - **Frame**: a mapping of variables and functions, to be used
-  by YAMLpp when evaluating Jinja expressions.
+  by Protein when evaluating Jinja expressions.
 
 - **Frame Stack**: the dynamically generated stack of all ➙ frames currently active. The stack is _not_ dependent on the structure of the data tree; it is built by explicit ➙ constructs found on that tree, such as importing a ➙ module, or creating a new ➙ frame.
 In other words, if none of these constructs are found in a
@@ -68,18 +68,18 @@ tree, the frame stack remains the same (all variables are stored in that frame).
 
 - **Variable**: an item stored a frame;
   it has a name (➙ key) and a ➙ value. A variable can be a ➙ scalar, ➙ a mapping, ➙ a sequence,
-  a YAMLpp ➙ function, or a ➙ Python function.
+  a Protein ➙ function, or a ➙ Python function.
 
 - **(Lexical) Scope**: the filter saying which variables the
-  YAMLpp program currently
+  Protein program currently
   has access to. The rules for the scope are simple: look for at the variable in the top frame of the stack,
   and if not found, look for it in
   the next frame down, and so on, until the bottom the frame stack.
   The term **lexical** refers to "the rules that decide where a name
   exists and how it can be accessed".
 
-- **Function**: in YAMLpp's terminology, it is a variable that
-  refers to a sequence of YAMLpp constructs, with specified
+- **Function**: in Protein's terminology, it is a variable that
+  refers to a sequence of Protein constructs, with specified
   arguments. A function is computed only when it is called.
 
 - **Context**: the projection (snapshot) of the frame stack
@@ -111,23 +111,23 @@ They "run, transform the tree and disappear".
         - `null` 
 3. A **string** value can be a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
    That expression relies in particular on variables.
-   If the result string is a valid Python literal (a scalar, or a list or dictionary), then YAMLpp will convert it into a node.
-4. A YAMLpp value collapses results of sequences (lists), in a way that is natural
+   If the result string is a valid Python literal (a scalar, or a list or dictionary), then Protein will convert it into a node.
+4. A Protein value collapses results of sequences (lists), in a way that is natural
    for the purpose 
    (empty lists return nothing, a list of 1 returns the item, etc.).
    For more details, see [description](advanced.md#collapse-rule)
 5. Keys can also contain Jinja2 statements (you can write `{server_name}: ...` 
    instead of `production: ...`, as long as `server_name` is a defined variable.
-6. The final output is a YAML tree where all YAMLpp constructs have disappeared.
+6. The final output is a YAML tree where all Protein constructs have disappeared.
 
-!!!Tip "YAMLpp obeys the rules of YAML syntax"
+!!!Tip "Protein obeys the rules of YAML syntax"
     - It provides declarative constructs without breaking YAML syntax. 
     - It allows modular, reusable, and expressive constructs that generate YAML files.
 
 
 
 
-## 🔧 Constructs of the YAMLpp language
+## 🔧 Constructs of the Protein language
 
 Each construct is defined below with its purpose and an example.
 
@@ -320,7 +320,7 @@ meaning: "Go"
 
 #### `.exit`
 **Definition**: Terminate the execution, with a message and an optional exit code (default: 0).
-It raises the exception YAMLppExitError; the CLI terminates with the exit code.
+It raises the exception ProteinExitError; the CLI terminates with the exit code.
 
 **Form**:
 ```yaml
@@ -342,7 +342,7 @@ It raises the exception YAMLppExitError; the CLI terminates with the exit code.
 
 
 #### `.load`
-**Definition**: Insert and preprocesses another YAMLpp (or YAML) file, at this place in the tree.  
+**Definition**: Insert and preprocesses another Protein (or YAML) file, at this place in the tree.  
 **Example**:
 ```yaml
 .load: "other.yaml"
@@ -387,7 +387,7 @@ normalized, in the sense that
 ```
 
 The exported file can be either plain YAML or other format. 
-YAMLpp constructs are expanded into YAML, before being exported.
+Protein constructs are expanded into YAML, before being exported.
 
 - The file extension (`yaml`, `json`, `toml`...) is optional.
 - The `.format` keyword is optional.
@@ -409,7 +409,7 @@ YAMLpp constructs are expanded into YAML, before being exported.
 
 === "YAML"
 
-    The logic is handled directly by the function `yamlpp.util.to_yaml()`.
+    The logic is handled directly by the function `Protein.util.to_yaml()`.
 
 
     !!! Tip "Reason why"  
@@ -439,7 +439,7 @@ YAMLpp constructs are expanded into YAML, before being exported.
 
 
     !!! Warning "Default values"
-        YAMLpp is not opinionated at all on the values (Ruamel decides), with one exception:
+        Protein is not opinionated at all on the values (Ruamel decides), with one exception:
 
         - **The default `typ` is 'rt', to ensure round-trip**. 
         - **No duplicate keys are allowed**
@@ -464,10 +464,10 @@ None (the tree is exported to the external file)
 **Definition**: Import a Python module, exposing functions and filters to the Jinja expressions.
 
 !!! Note "Delegation to Python"
-    In YAMLpp / Protein pipelines, **any complex logic that operates on a single mapping** (dictionary)
-    should be implemented as a **function** in Python, inside a module — not inside the YAMLpp code.
+    In Protein / Protein pipelines, **any complex logic that operates on a single mapping** (dictionary)
+    should be implemented as a **function** in Python, inside a module — not inside the Protein code.
 
-    YAMLpp should remain declarative; Python is the better place for computation.
+    Protein should remain declarative; Python is the better place for computation.
 
 
 **Example**:
@@ -491,7 +491,7 @@ def define_env(env: ModuleEnvironment):
     def shout(value: str) -> str:
         return f"{value.upper()}!!!"
     
-    env.variables["app_name"] = "YAMLpp"
+    env.variables["app_name"] = "Protein"
 ```
 
 This makes variables and filters from `module.py` available in Jinja2 expressions.
@@ -565,9 +565,9 @@ message: "Hello Alice!"
 ### Loading from SQL tables
 
 It can be useful to load values from an SQL table.
-YAMLpp uses SQLAlchemy as the underlying tool.
+Protein uses SQLAlchemy as the underlying tool.
 
-Below is a clean, minimal, **reference‑style** documentation block for the three directives, written in the YAMLpp operational dialect you and I have been stabilizing. No Python, no narrative—just the contract.
+Below is a clean, minimal, **reference‑style** documentation block for the three directives, written in the Protein operational dialect you and I have been stabilizing. No Python, no narrative—just the contract.
 
 
 
@@ -777,18 +777,18 @@ your line should be left-aligned.
 
 ## Dynamically changing the initial context
 
-There are two ways of changing the context of your YAMLpp file.
+There are two ways of changing the context of your Protein file.
 
 ### From the command line
 
 From the command-line, you can update (or create) the top-level `.create` context
-in your initial YAMLpp tree.
+in your initial Protein tree.
 
 ```sh
-yamlpp test1.yaml --set env=prod count=5
+Protein test1.yaml --set env=prod count=5
 ```
 
-Supposing that your YAMLpp file contained:
+Supposing that your Protein file contained:
 
 ```yaml
 .local
@@ -819,16 +819,16 @@ If the tree started with a sequence, a top level map will be created:
 You can also set arguments as sequences or maps (use YAML syntax):
 
 ```sh
-yamlpp test1.yaml --set env=prod users="[Laurent, Paul]"
+Protein test1.yaml --set env=prod users="[Laurent, Paul]"
 ```
 
 
 ### Through environment variables
 
-Another way to change dynamically the initial conditions that govern a YAMLpp program,
+Another way to change dynamically the initial conditions that govern a Protein program,
 is to use the environment variables of the OS, through the `getenv()` function.
 
-This statement may be used in any part of the YAMLpp tree.
+This statement may be used in any part of the Protein tree.
 
 ```yaml
 server:

@@ -1,4 +1,4 @@
-# 📘 YAMLpp Programming Guide
+# 📘 Protein Programming Guide
 
 ## Introduction
 
@@ -19,7 +19,7 @@ Create a file `hello.ypp`:
 
 Execute the file:
 ```sh
-yamlpp hello.ypp
+Protein hello.ypp
 ```
 
 And see the result on the console (it's goes to the stderr file):
@@ -42,7 +42,7 @@ result: Hello World
 
 Execute the file:
 ```sh
-yamlpp hello.ypp
+Protein hello.ypp
 ```
 
 This does nothing special, since it is already a plain YAML file:
@@ -69,12 +69,12 @@ To call a variable always use a Jinja expression, within double curly quotes
     A very common way to do so in YAML, is to put it between double quotes (there are others).
 
     **Jinja always produces its result in the form of a string.**
-    Then YAMLpp will interpret it: as a string (in this case) or as something else
+    Then Protein will interpret it: as a string (in this case) or as something else
     such as a number, a sequence or a mapping, if applicable.
 
 Execute the file:
 ```sh
-yamlpp hello.ypp
+Protein hello.ypp
 ```
 
 The result is:
@@ -98,7 +98,7 @@ The purpose is to generate [Kubernetes](https://kubernetes.io/docs/concepts/over
 - **prod** → 5 replicas, image tag `stable`
 
 Maintaining three separate YAML files is error‑prone.  
-YAMLpp lets you declare **one template** and generate all variants.
+Protein lets you declare **one template** and generate all variants.
 
 
 ### Step‑by‑Step Guide
@@ -153,9 +153,9 @@ Use `.foreach` to loop through each environment.
 ```
 
 
-#### Step 3 — Run YAMLpp
+#### Step 3 — Run Protein
 ```bash
-yamlpp k8s-template.yaml
+Protein k8s-template.yaml
 ```
 
 This produces three files:
@@ -217,7 +217,7 @@ To simplify make the code more abstract, we use a function.
 
 
 ```yaml
-# docker-compose.yamlpp
+# docker-compose.Protein
 
 .define:
   maintainer: "Laurent"
@@ -325,7 +325,7 @@ config:
           address: "{{ server.ip }}"
 ```
 
-Each block is processed in order by the YAMLpp interpreter.  
+Each block is processed in order by the Protein interpreter.  
 Here is what happens step by step.
 
 ---
@@ -407,7 +407,7 @@ config:
 
 **`.do:`**
 
-For each server, YAMLpp produces:
+For each server, Protein produces:
 
 ```
 - name: "<value of server.name>"
@@ -431,7 +431,7 @@ Interpolation replaces `{{ server.name }}` and `{{ server.ip }}` with actual val
 
 ### Final summary
 
-This YAMLpp program performs a complete data‑driven transformation:
+This Protein program performs a complete data‑driven transformation:
 
 1. Defines an SQL engine (`db`).
 2. Queries the database and stores results in `servers`.

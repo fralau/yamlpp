@@ -1,13 +1,13 @@
-# Expanding YAMLpp with Python Modules
+# Expanding Protein with Python Modules
 
 ## Purpose of a module
 
-It can be useful to add new **functions** (in the Python sense) to the [expressions](reference.md#yamlpp) of YAMLpp to:
+It can be useful to add new **functions** (in the Python sense) to the [expressions](reference.md#Protein) of Protein to:
 
 1. Make it more expressive, for example by adding functions on strings, paths, mathematical objects, etc.
 2. Extract data from other sources such as config files and databases.
 
-YAMLpp offers the possibility of using external Python modules that exports those functions.
+Protein offers the possibility of using external Python modules that exports those functions.
 
 ## Example 1: Adding a function and a filter to expressions
 
@@ -23,7 +23,7 @@ receives, as its first argument, the result of the expression before the pipe sy
 It has only one argument (the input string),
 that argument is implicit and no parentheses are needed.
 
-This is what the YAMLpp code should look like.
+This is what the Protein code should look like.
 
 ```yaml
 .local:
@@ -74,10 +74,10 @@ def define_env(env: ModuleEnvironment):
     def shout(value: str) -> str:
         return f"{value.upper()}!!!"
     
-    env.variables["app_name"] = "YAMLpp"
+    env.variables["app_name"] = "Protein"
 ```
 
-Finally, we should update the YAMLpp file, by importing the module
+Finally, we should update the Protein file, by importing the module
 (here, before the `data` map):
 
 ```yaml
