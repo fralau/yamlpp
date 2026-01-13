@@ -110,8 +110,9 @@ They "run, transform the tree and disappear".
         - timestamps ([ISO-8601](https://www.cl.cam.ac.uk/~mgk25/iso-time.html)), and
         - `null` 
 3. A **string** value can be a [Jinja statement](https://jinja.palletsprojects.com/en/stable/).
-   That expression relies in particular on variables.
-   If the result string is a valid Python literal (a scalar, or a list or dictionary), then Protein will convert it into a node.
+      - That expression relies in particular on variables.
+      - Jinja always returns a string.
+      - If the result string is a valid Python literal (a scalar, or a list or a dictionary), then **Protein will automatically convert it into a node** [^a]
 4. A Protein value collapses results of sequences (lists), in a way that is natural
    for the purpose 
    (empty lists return nothing, a list of 1 returns the item, etc.).
@@ -119,6 +120,8 @@ They "run, transform the tree and disappear".
 5. Keys can also contain Jinja2 statements (you can write `{server_name}: ...` 
    instead of `production: ...`, as long as `server_name` is a defined variable.
 6. The final output is a YAML tree where all Protein constructs have disappeared.
+
+[^a]: This conversion is made with the function [`ast.literal_eval()`](https://docs.python.org/3/library/ast.html#ast.literal_eval).
 
 !!!Tip "Protein obeys the rules of YAML syntax"
     - It provides declarative constructs without breaking YAML syntax. 
