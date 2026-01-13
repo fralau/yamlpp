@@ -61,6 +61,8 @@ def test_basic_add_function_with_variables():
     evaluates correctly across multiple `.call` invocations
     (with variables).
 
+    Arguments can also evaluate to sequences or mappings.
+
     Invocations are by position or by value
     """
     yaml_text = """
@@ -68,7 +70,7 @@ test:
   .do:
     - .function:
         .name: add
-        .args: [a, b]
+        .args: [a, b] # positional arguments (formal)
         .do:
           value: "{{ a + b }}"
 
@@ -76,19 +78,19 @@ test:
     - .define:
         x: 7
         y: 8
-    - .call: # using scalar variables (mapping)
+    - .call: # using scalar variables (arguments by mapping)
         .name: add
         .args: 
             a: "{{ x }}"
             b: "{{ y }}" 
-    - .call: # using scalar variables (sequence)
+    - .call: # using scalar variables (arguments by sequence)
         .name: add
         .args: ["{{ x }}", "{{ y }}"]
 
     - .define:
         x: [1, 2, 3]
         y: [4, 5, 6]
-    - .call: # using sequence (list) variables (concatenation)
+    - .call: # using sequence list arguments (concatenation)
         .name: add
         .args: 
             a: "{{ x }}"

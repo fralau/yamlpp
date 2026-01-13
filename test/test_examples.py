@@ -53,3 +53,4 @@ services:
     assert tree.services.api.labels.maintainer == "Joe Bloe"
     assert tree.services.worker.ports[0] == "9090:9090"
     assert tree.services.frontend.labels.version == "1.0"
+    assert len(tree.services) == 3
