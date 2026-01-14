@@ -150,7 +150,7 @@ class Interpreter:
                   '.load', '.import', '.import_module', 
                   '.function', '.call',  
                   '.def_sql', '.exec_sql', '.load_sql',
-                  '.export', '.open_buffer', '.write_buffer', '.save_buffer',
+                  '.export', '.write', '.open_buffer', '.write_buffer', '.save_buffer',
                   '.print')
 
 
@@ -1174,8 +1174,32 @@ class Interpreter:
 
 
     # ---------------------
-    # Buffer generation
+    # File export
     # ---------------------
+    def _save_file(self, filename:str, text:str) -> None:
+        """
+        Save text into a file
+        """
+        if not self.source_dir:
+            raise ValueError("Cannot save, this interpreter has no default dir.")
+        full_filename = get_full_filename(self.source_dir, filename)
+        with open(full_filename, 'w') as f:
+            f.write(text)
+        assert Path(full_filename).is_file()
+
+    def handle_write(self, entry:MappingEntry) -> None:
+        """
+        Write text into a file.
+
+        .write:
+            .filename: ... # filename, relative 
+            .text: ...     # text to write into the file
+        """
+        # evaluate with final form (strip literal prefixes)
+        text = self.evaluate_expression(entry.get('.text', ''), final=True)
+        filename = self.evaluate_expression(entry['.filename'])
+        self._save_file(filename, text)
+
     def handle_open_buffer(self, entry:MappingEntry) -> None:
         """
         Open a text buffer for output
@@ -1233,20 +1257,21 @@ class Interpreter:
         name = self.evaluate_expression(entry['.name'])
         check_name(name)
         filename = self.evaluate_expression(entry['.filename'])
-        if not self.source_dir:
-            self.raise_error(entry.value, Error.FILE, "Cannot save, this interpreter has no default dir.")
-        full_filename = get_full_filename(self.source_dir, filename)
-        assert full_filename
-        # print("Full filename:", full_filename)
         # Create and print the output:
         buffer = self.stack[name]
         indent_width = buffer['indent']
         assert indent_width
         file_output = render_buffer(buffer["content"], indent_width)
-        with open(full_filename, 'w') as f:
-            f.write(file_output)
-        assert Path(full_filename).is_file()
-
+        # Save to file:
+        # if not self.source_dir:
+        #     self.raise_error(entry.value, Error.FILE, "Cannot save, this interpreter has no default dir.")
+        # full_filename = get_full_filename(self.source_dir, filename)
+        # assert full_filename
+        # # print("Full filename:", full_filename)
+        # with open(full_filename, 'w') as f:
+        #     f.write(file_output)
+        # assert Path(full_filename).is_file()
+        self._save_file(filename, file_output)
 
 
     # -------------------------

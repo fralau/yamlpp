@@ -1,5 +1,5 @@
 """
-Test the buffer functions
+Test the buffer constructs
 (for producing export files)
 """
 from pathlib import Path

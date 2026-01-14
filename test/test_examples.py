@@ -5,12 +5,12 @@ Testing examples in the documentation.
 from protein import protein_comp
 from protein.util import print_yaml
 
-def test_function_to_create_abstraction():
+def test_usage_example(tmp_path):
     """
-    Test the example function to create an abstraction from the documentation.
+    Test the example function to produce a YAML file and a README file.
     """
     src = """
-# docker-compose.Protein
+# Example: Generate a Docker Compose file with a reusable function, and write a README
 
 .define:
   maintainer: "Joe Bloe"
@@ -44,9 +44,25 @@ services:
       - .call: 
           .name: create_service
           .args: ["{{ svc }}"]
+
+
+.write:
+    .filename: README.md
+    .text: |
+        # Docker Compose File
+        
+        (This docker-compose file was generated using Protein.)
+
+        It defines the following services:
+        
+        | Service | Image | Port |
+        |---------|-------|------|
+        {% for svc in services %}
+        | {{ svc.name }} | {{ svc.image }} | {{ svc.port }} |
+        {% endfor %}
 """
 
-    yaml, tree = protein_comp(src)
+    yaml, tree = protein_comp(src, working_dir=tmp_path)
     print_yaml(yaml, "Evaluation")
 
     assert tree.services.api.image == "myorg/api:latest"
@@ -54,3 +70,11 @@ services:
     assert tree.services.worker.ports[0] == "9090:9090"
     assert tree.services.frontend.labels.version == "1.0"
     assert len(tree.services) == 3
+
+    with open(tmp_path / "README.md") as f:
+        readme_content = f.read()
+    assert "barbaz" not in readme_content
+    assert "# Docker Compose File" in readme_content
+    assert "| api | myorg/api:latest | 8080 |" in readme_content
+    assert "| worker | myorg/worker:latest | 9090 |" in readme_content
+    assert "| frontend | myorg/frontend:latest | 3000 |" in readme_content
