@@ -3,7 +3,7 @@
 Test Jinja2 escaping ({% raw %}...{% endraw %})
 """
 
-from protein import Interpreter
+from protein import protein_comp
 from protein.util import print_yaml
 
 
@@ -30,19 +30,16 @@ jobs:
                 echo "Current ref is ${{ github.ref }}"
                 {% endraw %}
 """
-
-    i = Interpreter()
-    i.load_text(yaml_source)
-    workflow = i.tree
-
-    print_yaml(i.yaml)
+    yaml, tree = protein_comp(yaml_source)
+    
+    print_yaml(yaml)
 
     # Check that the workflow name was interpolated
-    assert "name" in workflow
-    workflow['name'] == 'Example Workflow'
+    assert "name" in tree
+    assert tree['name'] == 'Example Workflow'
 
     # Check that the raw block preserved the GitHub expression
-    assert 'echo "Current ref is ${{ github.ref }}"' in workflow.jobs.demo.steps[0].run
+    assert 'echo "Current ref is ${{ github.ref }}"' in tree.jobs.demo.steps[0].run
 
 
 def test_multiple_workflows_with_foreach_and_raw():
@@ -74,16 +71,14 @@ def test_multiple_workflows_with_foreach_and_raw():
                         {% endraw %}
 """
 
-    i = Interpreter()
-    i.load_text(yaml_source)
-    workflows = i.tree
+    yaml, tree = protein_comp(yaml_source)
 
-    print_yaml(i.yaml)
+    print_yaml(yaml)
     # Expected keys after collapse
-    assert list(workflows.keys()) == ["build.yml", "release.yml"]
+    assert list(tree.keys()) == ["build.yml", "release.yml"]
 
-    build = workflows["build.yml"]
-    release = workflows["release.yml"]
+    build = tree["build.yml"]
+    release = tree["release.yml"]
 
     # Check interpolation of workflow names
     assert 'echo "Value is ${{ github.ref }}"' in build.jobs.steps[0].run

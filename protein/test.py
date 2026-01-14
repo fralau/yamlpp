@@ -33,6 +33,7 @@ def interp(text):
     scope.update(frame.f_locals)
     return Template(text).substitute(scope)
 
+
 def read_file(filepath:str) -> str:
     """
     Read the contents of a file and return as a string.

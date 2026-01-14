@@ -8,7 +8,7 @@ from string import Template
 
 from protein import protein_comp 
 from protein.error import YAMLppError
-from protein.util import print_yaml
+from protein.test import print_yaml, read_file
 
 def test_buffer_simple(tmp_path):
     "Simple test of a buffer"
@@ -172,10 +172,7 @@ def test_buffer_complete(tmp_path):
         .filename: "$filename"
 """) 
     program = template.substitute(filename=EXPORT_FILENAME) 
-    yaml, tree = protein_comp(program, tmp_path)
-    out_file = Path(tmp_path) / EXPORT_FILENAME
-    assert out_file.is_file()
-    with open(out_file) as f:
-        result = f.read()
+    protein_comp(program, tmp_path)
+    result = read_file(tmp_path / EXPORT_FILENAME)
     print_yaml(result, "Compiled result")
     
