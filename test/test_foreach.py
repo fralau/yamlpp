@@ -42,7 +42,7 @@ def test_foreach_basic_singleton():
 
     yaml, tree = protein_comp(program)
     print_yaml(yaml, "Result")
-    assert list(tree.result) == [1]
+    assert tree.result == 1 # single value, not a list (collapsed)
 
 
 def test_foreach_map():

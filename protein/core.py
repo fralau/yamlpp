@@ -45,8 +45,12 @@ ListNode  = List[Any]
 Node = Union[BlockNode, ListNode, str, int, float, bool, None] 
 KeyOrIndexentry = Tuple[Union[str, int], Node]
 
-ALLOWED_NODE_TYPES = dict, list, CommentedMap, CommentedSeq
-ALL_NODE_TYPES = ALLOWED_NODE_TYPES + (str, int, float, bool, type(None))   
+# Node types
+SCALAR_TYPES = (str, int, float, bool, type(None))
+SEQUENCE_TYPES = (list, CommentedSeq)
+MAPPING_TYPES = (dict, CommentedMap)
+COMPOSITE_TYPES = SEQUENCE_TYPES + MAPPING_TYPES
+ALL_NODE_TYPES = COMPOSITE_TYPES + SCALAR_TYPES   
 
 # Global functions for Jinja2
 
@@ -383,7 +387,7 @@ class Interpreter:
             assert len(self.initial_tree) > 0, "Empty yamlpp!"
             # print("Initial tree:", self.initial_tree)
             self._tree = self.process_node(self.initial_tree)
-            assert isinstance(self._tree, ALLOWED_NODE_TYPES) or self._tree is None, f"Tree is {type(self._tree).__name__}"
+            assert isinstance(self._tree, ALL_NODE_TYPES), f"Tree is {type(self._tree).__name__}"
             # assert self._tree is not None, "Empty tree!"
             self._dirty = False
         return self._tree
@@ -450,9 +454,10 @@ class Interpreter:
                 #     # print("Returned foreach:",)
                 # ....
                 # ------
-                if key in self.CONSTRUCTS:
+                if key.startswith('.'):
                     try:
                         r = self._despatch(key, entry)
+                        # print("Type of returned object from", key, ":", type(r).__name__)
                     except SQLOperationalError as e:
                         self.raise_error(node, Error.SQL, e)
                 else:
@@ -483,7 +488,8 @@ class Interpreter:
             if len(result_dict):
                 return result_dict
             elif len(result_list):
-                return result_list
+                # here we collapse, in case 1 item
+                return collapse_seq(result_list)
 
         elif isinstance(node, list):
             # print("List:", node)
@@ -507,15 +513,20 @@ class Interpreter:
 
         '.load' -> self.handle_load()
         """
-        assert keyword in self.CONSTRUCTS, f"Unknown keyword '{keyword}'"
+        # assert keyword in self.CONSTRUCTS, f"Unknown keyword '{keyword}'"
         
         # find the handler method:
-        method_name = f"handle_{keyword[1:]}"
-        if hasattr(self, method_name):
-            # call the handler
-             method = getattr(self, method_name)
+        if keyword in self.CONSTRUCTS:
+            method_name = f"handle_{keyword[1:]}"
+            if hasattr(self, method_name):
+                # call the handler
+                method = getattr(self, method_name)
+            else:
+                raise AttributeError(f"Missing handler for {method_name}!")
         else:
-            raise AttributeError(f"Missing handler for {method_name}!")
+            # Try to execute a Python callable
+            # print("Calling callable for keyword:", keyword)
+            return self.handle_binding(keyword, entry)
         # run the method and return the result
         err_intro = f"{keyword} > " # for error handling
         try:
@@ -1110,7 +1121,6 @@ class Interpreter:
         return i.render_tree()
 
 
-
     # ---------------------
     # SQL input
     # ---------------------
@@ -1262,16 +1272,88 @@ class Interpreter:
         indent_width = buffer['indent']
         assert indent_width
         file_output = render_buffer(buffer["content"], indent_width)
-        # Save to file:
-        # if not self.source_dir:
-        #     self.raise_error(entry.value, Error.FILE, "Cannot save, this interpreter has no default dir.")
-        # full_filename = get_full_filename(self.source_dir, filename)
-        # assert full_filename
-        # # print("Full filename:", full_filename)
-        # with open(full_filename, 'w') as f:
-        #     f.write(file_output)
-        # assert Path(full_filename).is_file()
         self._save_file(filename, file_output)
+
+
+    # -------------------------
+    # For language extensibility
+    # -------------------------
+    def handle_binding(self, key:str, entry:MappingEntry) -> Node:
+        """
+        Handle a call to a Python callable (function) in the stack.
+
+        Forms:
+        ------
+
+        .my_variable: ... # a variable (not a callable), just return it
+
+        or:
+
+        .my_function: [...] # positional arguments
+
+        or:
+
+        .my_function: {...} # keyword arguments
+
+        or:
+
+        .my_function:
+            .args: [...] # positional arguments
+            .kwargs: {...} # keyword arguments
+
+        Returns
+        -------
+        A host callable must return a scalar, sequence, or mapping.
+        Any other return type is a type error.
+        """ 
+        try:
+            binding_name = key[1:]  # strip the leading dot
+            obj = self.stack[binding_name]
+        except KeyError:
+            print(self.stack.capture)
+            self.raise_error(entry.value, Error.KEY, 
+                             f"binding '{key}' not found in the stack!")
+        if not callable(obj):
+            if isinstance(obj, ALL_NODE_TYPES):
+                return obj
+            else:
+                self.raise_error(entry.value, Error.TYPE, 
+                             f"Object '{key}' is not binding (is a {type(obj).__name__})")
+        
+        # it's callable: process the arguments
+        if '.args' in entry.value or '.kwargs' in entry.value:
+            # .args/.kwargs form
+            args = self.process_node(entry.value.get('.args')) or []
+            kwargs = self.process_node(entry.value.get('.kwargs')) or {}
+            if not isinstance(args, SEQUENCE_TYPES):
+                self.raise_error(entry.value, Error.ARGUMENTS, 
+                             f"Positional arguments (.args) must be a sequence (is a {type(args).__name__})")
+            if not isinstance(kwargs, MAPPING_TYPES):
+                self.raise_error(entry.value, Error.ARGUMENTS, 
+                             f"Keyword arguments (.kwargs) must be a mapping (is a {type(kwargs).__name__})")
+        elif isinstance(entry.value, SEQUENCE_TYPES):
+            # positional arguments form
+            args = self.process_node(entry.value) or []
+            kwargs = {}
+        elif isinstance(entry.value, MAPPING_TYPES):
+            # keyword arguments form
+            args = []
+            kwargs = self.process_node(entry.value) or {}
+
+        else:
+            self.raise_error(entry.value, Error.ARGUMENTS, 
+                             f"Arguments for callable '{key}' must be a mapping or sequence (is a {type(entry.value).__name__})")
+        # call the function
+        try:
+            r = obj(*args, **kwargs)
+        except Exception as e:
+            self.raise_error(entry.value, Error.OTHER, f"Error calling '{key}': {e}")
+        if not isinstance(r, ALL_NODE_TYPES):
+            # Refuse invalid types
+            self.raise_error(entry.value, Error.TYPE, 
+                             f"Callable '{key}' returned an invalid type (is a {type(r).__name__})")
+        # print("Returned object of class:", type(r).__name__)
+        return r
 
 
     # -------------------------
