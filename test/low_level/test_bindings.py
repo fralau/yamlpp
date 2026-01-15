@@ -57,7 +57,7 @@ def test_object_variable():
     i = Interpreter()
     i.stack['f'] = 123
     entry = entry_with_value({})
-    assert i.handle_binding('.f', entry) == 123
+    assert i.handle_binding('.f', entry) == {'f': 123}
 
 # ------------------------------------------------------------
 # Invalid return types

@@ -190,4 +190,4 @@ def test_module_variable(tmp_path):
 .app_name:
 """)
     yaml_out, tree = protein_comp(program, working_dir=str(tmp_path))
-    assert tree == "Protein"
+    assert tree.app_name == "Protein"

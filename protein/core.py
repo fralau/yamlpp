@@ -619,18 +619,36 @@ class Interpreter:
         to create a new frame (or a part of a frame).
         """
         new_frame: Dict[str, Any] = {}
-        if params_block is None:
-            params_block = {}
-        elif isinstance(params_block, dict):
+
+
+        # Push the frame BEFORE filling it
+        self.stack.push(new_frame)
+        try:
+            if params_block is None:
+                params_block = {}
+            elif not isinstance(params_block, dict):
+                raise ValueError(
+                    f"A frame must be a mapping found: {type(params_block).__name__}"
+                )
+            # handle special constructs first:
             for key, value in params_block.items():
-                # print("Key:", key)
-                assert isinstance(self.stack, Stack), f"the stack is not a Stack but '{type(self.stack).__name__}'"
-                # normalize the result, so that it's properly managed as a variable
+                if key.startswith('.'):
+                    r = self._despatch(key, MappingEntry(key, value))
+                    # insert the result into the new frame
+                    if isinstance(r, MAPPING_TYPES):
+                        new_frame.update(r)
+                    elif r is not None:
+                        raise ValueError(
+                            f"Cannot process construct '{key}': it returned a {type(r).__name__} instead of a mapping."
+                        )
+            for key, value in params_block.items():
                 new_frame[key] = normalize(self.process_node(value))
-        else:
-            raise ValueError(f"A frame must be a dictionary found: {type(params_block).__name__}")
-        
+
+        finally:
+            self.stack.pop()
+
         return new_frame
+
 
 
     # ---------------------
@@ -647,50 +665,35 @@ class Interpreter:
     # Variables
     # ---------------------
 
+    def handle_define(self, entry:MappingEntry) -> None:
+        """
+        Defines new variables, without creating a new scope.
+
+        .define:
+            var1: value1
+            var2: value2
+
+        """
+        block = self._get_frame(entry.value)
+        # print("New scope:\n", new_scope)
+        self.stack.update(block)
+        if self._is_module:
+            # in a module, you return the result of the evaluation
+            return block
+        else:
+            return None
+
     def handle_local(self, entry:MappingEntry) -> None:
         """
         Creates a new frame (scope) on the stack, and adds variables.
-
-        Note: you cannot reuse variables defined in the same .local block.
 
         .local:
             ....
 
         """
         self.stack.push({}) # create the frame before doing calculations
-        # print("Value:\n", entry.value)
-        result = self.process_node(entry.value)
-        new_frame = self._get_frame(result)
-        # print("New scope:\n", new_scope)
-        self.stack.update(new_frame)
-        self.jinja_env.filters.push({})
-        if self._is_module:
-            # in a module, you return the result of the evaluation
-            return result
-        else:
-            return None
+        return self.handle_define(entry)
     
-    def handle_define(self, entry:MappingEntry) -> None:
-        """
-        Defines new variables, without creating a new scope.
-
-        Note: you cannot reuse variables defined in the same .export block.
-
-        It is useful
-        - when used before the `.local`in an imported file: for exporting variables
-          to the parent context.
-        - after a .local, for defining new variables, without changing scope
-        """# create the scope before doing calculations
-        # print("Value:\n", entry.value)
-        result = self.process_node(entry.value)
-        block = self._get_frame(result)
-        # print("New scope:\n", new_scope)
-        self.stack.update(block)
-        if self._is_module:
-            # in a module, you return the result of the evaluation
-            return result
-        else:
-            return None
 
     def handle_emit(self, entry:MappingEntry) -> Node:
         """
@@ -871,7 +874,8 @@ class Interpreter:
             text = f.read()
         # read the file
         data = deserialize(text, actual_format, **kwargs)
-        # _, data = load_yaml(full_filename)
+        print("LOADED:", data)
+        # process the loaded data
         r = self.process_node(data)
         # reassign the source_file
         self.stack['__SOURCE_FILE__'] = CALLING_FILENAME
@@ -967,6 +971,7 @@ class Interpreter:
         last_frame = i.stack.top()
         if not exposes_names:
             # no names exposed:
+            print("Last frame:", last_frame)
             self.stack[module_name] = last_frame
             return None
         # print("Full tree:", i.tree)
@@ -1303,8 +1308,9 @@ class Interpreter:
 
         Returns
         -------
-        A host callable must return a scalar, sequence, or mapping.
-        Any other return type is a type error.
+        - A host callable must return a scalar, sequence, or mapping.
+          Any other return type is a type error.
+        - If a variable is referenced, it is returned as a mapping {name: value}
         """ 
         try:
             binding_name = key[1:]  # strip the leading dot
@@ -1315,7 +1321,9 @@ class Interpreter:
                              f"binding '{key}' not found in the stack!")
         if not callable(obj):
             if isinstance(obj, ALL_NODE_TYPES):
-                return obj
+                # return the object, with its binding name
+                # this is a key part of the design of Protein!
+                return {binding_name: obj}
             else:
                 self.raise_error(entry.value, Error.TYPE, 
                              f"Object '{key}' is not binding (is a {type(obj).__name__})")

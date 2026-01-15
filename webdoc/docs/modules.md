@@ -7,7 +7,81 @@ It can be useful to add new **functions** (in the Python sense) to the [expressi
 1. Make it more expressive, for example by adding functions on strings, paths, mathematical objects, etc.
 2. Extract data from other sources such as config files and databases.
 
-Protein offers the possibility of using external Python modules that exports those functions.
+Protein offers the possibility of using external Python modules that exports those variables and functions.
+
+Those variables and functions can be used in two places:
+
+1. As new _constructs_ of the Protein language (preceded by a dot).
+2. Inside values, in expressions written in templating language called [Jinja](https://jinja.palletsprojects.com/en/stable/). You can refer to Python variables, or call Python functions.
+
+### Scoping Rules
+To understand how both these mechanisms work, it is necessary to understand that any variable or
+function that is usable within a Protein program is stored in a **scope**
+(a Protein program starts with its own scope). 
+
+There is also an underlying scope created when the Protein interpreter is activated,
+which contains some values and functions. To find the
+value connected to a variable, Protein
+consults first the current scope and then underlying scopes.
+
+### Host Bindings
+
+If you use the [`.define`](reference.md#define) construct,
+you are storing variables into the _current_ scope.
+
+A [`.function`](reference.md#function) construct stores a Protein function into the current scope.
+
+You can **also** use variables and callables (functions) not defined by Protein,
+which come from the **host** (the supporting language: Python).
+
+The standard way to do that, is to define them in a **module**, written in Python. It is not
+any Python package. It is a piece of Python program written in a specific way, which
+defines variables and functions, and exposes them.
+
+```python
+"""
+A sample module
+
+(module.py)
+"""
+from protein import ModuleEnvironment
+
+def define_env(env: ModuleEnvironment):
+    "Define your functions, filters and variables here"
+
+    @env.export
+    def my_function(...):
+        """
+        This function will be exported
+        """
+        ...
+        return ...
+
+    # this variable will be exported
+    env.variables["foo"] = ....
+
+```
+
+Then the program must _import_ it:
+
+```yaml
+.import_module: path/to/module.py
+```
+
+All exported variables will become part of the current scope.
+
+!!! Tip
+
+    If you wish to avoid polluting the current scope, you can create a new
+    scope, which will last as long as this node is being run.
+
+    ```yaml
+    servers: 
+      .local:
+
+      .import_module: path/to/module.py
+      ...
+    ```
 
 ## Example 1: Adding a function and a filter to expressions
 
@@ -26,7 +100,7 @@ that argument is implicit and no parentheses are needed.
 This is what the Protein code should look like.
 
 ```yaml
-.local:
+.define:
   module: module1.py
   name: Joe
   sentence: "Hello world!"
