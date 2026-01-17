@@ -14,7 +14,7 @@ from protein.error import YAMLppError, YAMLValidationError
 from protein.util import print_yaml, deserialize, FILE_FORMATS
 
 # this formats are not teste because they are not general enough
-EXCLUDED_FORMATS = ['env']
+EXCLUDED_FORMATS = ['env', 'raw', 'markdown']
 
 EXPORT_COMBINATIONS = [(fmt, explicit) for fmt in FILE_FORMATS
                                        if fmt not in EXCLUDED_FORMATS

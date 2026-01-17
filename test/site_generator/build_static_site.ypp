@@ -1,0 +1,94 @@
+# Load external data
+# Protein program
+
+.import_module: module.py
+
+.define:
+  site_title: "My Static Site"
+  author: "Jane Doe"
+
+  pages: "{{ glob('pages/*.md') }}"
+
+  # load the template
+  template:
+    .load: 
+      .filename: templates/page.html
+      .format: raw
+
+  # for the css file
+  theme:
+    .load: theme.yaml
+
+  # get the list of pages                
+  sitemap:
+    .foreach:
+      .values: [fname, "{{ pages }}"]
+      .do:
+        .print: "Reading {{ fname }}"
+        .load: 
+          .filename: "{{ fname }}"
+          .format: markdown
+            
+.do:
+  - .print: "Sitemap: {{ sitemap }}"
+  - .do: "{{ assert(sitemap, 'Sitemap is empty')}}"
+  # Emit CSS from theme data
+  - .write:
+      .filename: site/styles.css
+      .text: |
+        :root {
+          --font-family: {{ theme.font_family }};
+          --base-size: {{ theme.base_size }};
+          --primary: {{ theme.primary }};
+          --secondary: {{ theme.secondary }};
+        }
+        body {
+          font-family: var(--font-family);
+          font-size: var(--base-size);
+          color: var(--primary);
+        }
+
+  # Emit one HTML file per page
+  -  .foreach:
+      .values: [entry, "{{ sitemap }}"]
+      .do:
+        .define:
+          page: "{{ correct_page(entry, author) }}"
+        .print: "Page: {{ page }}"
+        .write:
+          .filename: "site/{{ page.meta.slug }}.html"
+          .text: |
+            <html>
+            <head>
+              <title>{{ page.meta.title }}</title>
+              <link rel="stylesheet" href="styles.css">
+            </head>
+            <body>
+              <h1>{{ page.meta.title }}</h1>
+              <ul>
+              {{ render_markdown_to_html(page.text)}}
+              </ul>
+              <footer>© {{ page.meta.author }}</footer>
+            </body>
+            </html>
+
+  # Emit index.html
+  - .write:
+      .filename: site/index.html
+      .text: |
+        <html>
+        <head>
+          <title>{{ site_title }}</title>
+          <link rel="stylesheet" href="styles.css">
+        </head>
+        <body>
+          <h1>{{ site_title }}</h1>
+          <ul>
+          {% for entry in sitemap %}
+          {% set page = correct_page(entry, author) %}
+            <li><a href="{{ page.meta.slug }}.html">{{ page.meta.title }}</a></li>
+          {% endfor %}
+          </ul>
+          <footer>© {{ author }}</footer>
+        </body>
+        </html>

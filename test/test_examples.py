@@ -34,8 +34,7 @@ def test_usage_example(tmp_path):
         maintainer: "{{ maintainer }}"
         version: "{{ version }}"
 
-version: "3.9"
-
+# this will go to the standard ouptut:
 services:
   .foreach:
     .values: [svc, "{{ services }}"]
@@ -47,6 +46,7 @@ services:
 
 
 .write:
+    # this will write to a file in the working directory
     .filename: README.md
     .text: |
         # Docker Compose File

@@ -34,7 +34,8 @@ console = Console()
 
 # file formats/extensions
 # ypp format is considered here equivalent to yaml (to facilitate .load)
-FILE_FORMATS = ['yaml', 'json', 'toml', 'python', 'ypp', 'env']
+FILE_FORMATS = ['yaml', 'json', 'toml', 'python', 'ypp', 'env',
+                'raw', 'markdown']
 
 # The prefix that marks a string as literal (not to be interpreted by Protein)
 LITERAL_PREFIX = "#!literal"
@@ -474,10 +475,115 @@ def serialize(tree, format:str='yaml', comment:str=None, **kwargs) -> str:
     except TypeError as e:
         raise KeyError(f"Error in additional arguments for conversion to '{format}': {kwargs}\n{e}")
 
-def deserialize(text: str, format: str='yaml', *args, **kwargs):
+
+# -------------------------
+# Deserialization
+# -------------------------
+
+
+
+import frontmatter
+
+from markdown_it import MarkdownIt
+
+def markdown_to_tree(md_text: str) -> str:
+    """
+    Produce a conceptual tree from a markdown file of:
+      - title: str
+      - body: str (no trailing newline)
+      - nodes: list (only if non-empty)
+    """
+    md = MarkdownIt()
+    tokens = md.parse(md_text)
+
+    root = []
+    stack = [(0, {"nodes": root})]  # (level, node)
+    current_node = None
+    body_buffer = []
+
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+
+        # --- Heading ---
+        if tok.type == "heading_open":
+            # Finalize previous node's body
+            if current_node is not None:
+                current_node["body"] = "".join(body_buffer).rstrip("\n")
+                body_buffer = []
+
+            level = int(tok.tag[1])
+            title = tokens[i+1].content
+
+            node = {"title": title, "body": ""}
+
+            # Find correct parent
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+
+            parent = stack[-1][1]
+            parent.setdefault("nodes", []).append(node)
+
+            # Push new node
+            stack.append((level, node))
+            current_node = node
+
+            i += 3
+            continue
+
+        # --- Body text ---
+        if current_node and tok.type == "inline":
+            body_buffer.append(tok.content + "\n")
+
+        i += 1
+
+    # Finalize last node
+    if current_node is not None:
+        current_node["body"] = "".join(body_buffer).rstrip("\n")
+
+    def prune(node):
+        "Remove empty nodes lists"
+        if "nodes" in node:
+            for child in node["nodes"]:
+                prune(child)
+            if not node["nodes"]:
+                del node["nodes"]
+
+    for top in root:
+        prune(top)
+
+    return root
+
+
+def loads_markdown(md_text: str, filename:str=None, structured:bool=False) -> dict:
+    """
+    Deserialize Markdown into:
+      - meta: dict from front‑matter (YAML/TOML/JSON)
+      - text: Markdown body
+    """
+    post = frontmatter.loads(md_text)
+    r = {
+        "meta": post.metadata or {},
+        "text": post.content,
+    }
+
+    if filename:
+        r["filename"] = filename
+        # assert filename
+
+    if structured:
+        # split into a real tree
+        r["text"] = markdown_to_tree(r["text"])
+
+    return r
+
+
+def deserialize(text: str, format: str='yaml', filename:str=None, *args, **kwargs):
     """
     Parse text back into Python objects depending on format.
-    Supported: yaml, json, toml, python
+
+    Supported: yaml, json, toml, python, raw (plain text)
+    
     Extra args/kwargs are passed to the backend parser.
 
     YAML: by default the deserialization is 'rt' (round-trip);
@@ -504,6 +610,11 @@ def deserialize(text: str, format: str='yaml', *args, **kwargs):
         return ast.literal_eval(text)
     elif format == "env":
         return DotEnv.loads(text)
+    elif format == "markdown":
+        # this also allows deserialization in a structured way
+        return loads_markdown(text, filename, *args, **kwargs)
+    elif format == "raw":
+        return text
     else:
         raise ValueError(f"Unsupported format: {format}")
 

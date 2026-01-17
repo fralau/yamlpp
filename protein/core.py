@@ -21,6 +21,7 @@ from jinja2.exceptions import UndefinedError as Jinja2UndefinedError
 from pprint import pprint
 
 from .stack import Stack
+from .global_context import GLOBAL_CONTEXT # the fundamental context on a Protein interpreter's lexical stack
 from .util import load_yaml, validate_node, parse_yaml, safe_path, print_yaml 
 from .util import check_name, get_full_filename
 from .util import to_yaml, serialize, get_format, deserialize, normalize, collapse_seq, collapse_maps
@@ -52,15 +53,7 @@ MAPPING_TYPES = (dict, CommentedMap)
 COMPOSITE_TYPES = SEQUENCE_TYPES + MAPPING_TYPES
 ALL_NODE_TYPES = COMPOSITE_TYPES + SCALAR_TYPES   
 
-# Global functions for Jinja2
 
-import keyring
-GLOBAL_CONTEXT = {
-    "getenv": os.getenv, # function
-    "get_password": keyring.get_password, # function
-    "osquery": osquery, # function 
-    "strip_prefix": strip_prefix, # function needed in Jinja2, if the literal prefix must be stripped
-        }
 
 
 # strings accepted as expressions
@@ -873,7 +866,7 @@ class Interpreter:
         with open(full_filename, 'r') as f:
             text = f.read()
         # read the file
-        data = deserialize(text, actual_format, **kwargs)
+        data = deserialize(text, actual_format, filename=filename, **kwargs)
         print("LOADED:", data)
         # process the loaded data
         r = self.process_node(data)
@@ -1004,7 +997,7 @@ class Interpreter:
         except FileNotFoundError as e:
             self.raise_error(entry.value, Error.FILE, e)  
         # full_filename = os.path.join(self.source_dir, filename)
-        variables, filters = get_exports(full_filename)
+        variables, filters = get_exports(full_filename, source_dir=self.source_dir)
         # note how we use update(), since we add to the local scope:
         self.jinja_env.globals.update(variables)
         self.jinja_env.filters.update(filters)

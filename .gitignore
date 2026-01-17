@@ -15,6 +15,7 @@ uv.lock
 # testing
 .pytest*
 _export/
+test/site_generator/site
 
 # editor
 .vscode
