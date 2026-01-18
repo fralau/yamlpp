@@ -1,5 +1,9 @@
 # Protein, a Data Composer and Templating Tool
 
+![PyPI](https://img.shields.io/pypi/v/protein-lang)
+![CI](https://github.com/fralau/protein/actions/workflows/pypi.yml/badge.svg)
+![pytest](https://img.shields.io/badge/tests-pytest-blue)
+![Docs](https://img.shields.io/readthedocs/yamlpp)
 
 ## Problem
 Nowadays, a lot of software is piloted by data files, typically JSON or YAML files.
