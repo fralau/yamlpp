@@ -1,228 +1,312 @@
-# Expanding Protein with Python Modules
+# Expanding Protein with Protein Modules
 
-## Purpose of a module
+## How Modules Work
 
-It can be useful to add new **functions** (in the Python sense) to the [expressions](reference.md#Protein) of Protein to:
+A Protein module may export Python variables, functions, and filters, which become available inside a Protein program in two complementary ways: 
 
-1. Make it more expressive, for example by adding functions on strings, paths, mathematical objects, etc.
-2. Extract data from other sources such as config files and databases.
+1. As variables, functions or filters inside expressions (called with `{{ my_function(...) }}` in Jinja). 
+1. If they are functions, as new constructs (called with `.my_function:` in YAML) and 
 
-Protein offers the possibility of using external Python modules that exports those variables and functions.
+ 
+!!! Important "Duality of functions"
 
-Those variables and functions can be used in two places:
+    This duality is fundamental: every imported Python function can be used both as a **construct**, and
+    a **function** within a Jinja expression. 
 
-1. As new _constructs_ of the Protein language (preceded by a dot).
-2. Inside values, in expressions written in templating language called [Jinja](https://jinja.palletsprojects.com/en/stable/). You can refer to Python variables, or call Python functions.
+This chapter explains how modules work, how they interact with scopes, and how to use them effectively.
 
-### Scoping Rules
-To understand how both these mechanisms work, it is necessary to understand that any variable or
-function that is usable within a Protein program is stored in a **scope**
-(a Protein program starts with its own scope). 
+## Definition and Purpose of a Protein Module
 
-There is also an underlying scope created when the Protein interpreter is activated,
-which contains some values and functions. To find the
-value connected to a variable, Protein
-consults first the current scope and then underlying scopes.
+The standard Protein's constructs exist "as themselves". This is the **core** of Protein.
 
-### Host Bindings
+Nevertheless, the Protein interpreter runs on a **host** (the Python environment). 
+You can use that host to extend the capabilities of Protein, thanks to **Protein Modules**.
 
-If you use the [`.define`](reference.md#define) construct,
-you are storing variables into the _current_ scope.
+Protein **modules** are wrappers for lists of **variables**, **functions** and **filters** written in Python.
 
-A [`.function`](reference.md#function) construct stores a Protein function into the current scope.
+They allow you to enrich Protein with functions that:
 
-You can **also** use variables and callables (functions) not defined by Protein,
-which come from the **host** (the supporting language: Python).
+- Perform arithmetic operations (string utilities, math helpers, path manipulation, etc.), 
+- Give access to external data (files, databases, APIs),
+- Provide any reusable logic that you want to share across multiple Protein programs.
 
-The standard way to do that, is to define them in a **module**, written in Python. It is not
-any Python package. It is a piece of Python program written in a specific way, which
-defines variables and functions, and exposes them.
+A module is a Python file that uses a `define_env(env)` function. Inside this function, you declare what you want to expose.
+
+### Outline
+
+Here is an outline of how to write a Protein module:
 
 ```python
-"""
-A sample module
-
-(module.py)
-"""
 from protein import ModuleEnvironment
 
 def define_env(env: ModuleEnvironment):
-    "Define your functions, filters and variables here"
+    "This function contains the exports"
 
+    # export a variable:
+    env.variables["foo"] = 42
+
+    # export a function:
     @env.export
     def my_function(...):
-        """
-        This function will be exported
-        """
-        ...
         return ...
 
-    # this variable will be exported
-    env.variables["foo"] = ....
-
+    # export a Jinja filter:
+    @env.filter
+    def shout(value: str) -> str:
+        return value.upper()
+    
 ```
 
-Then the program must _import_ it:
+Once imported into your Protein program, the module’s exports become part of the current scope and can be used anywhere within that scope.
 
+!!! Warning "Do not confuse a Protein module with a Python package!"
+    A **Protein module** is **not** any type of Python package. 
+    It is a Python program, but written in a very exact way,
+    to define explicitly which variables, functions and filters
+    you want to export.
+
+    If you attempt to import a "normal" Python package, **it will not work**!
+
+
+### Filters
+A **filter** is a special function in Jinja behind a `|` symbol; its first argument is the string that precedes it. 
+
+The filter `shout` can then be used in this way:
+
+```yaml
+foo = "{{ 'Hello World' | shout }}"
+```
+
+The string `Hello World` is the argument of the function `shout`.
+
+To know more about filters, see the [description in the Jinja documentation](https://jinja.palletsprojects.com/en/stable/api/#custom-filters).
+
+### Decorators
+The idioms `@env.export` and `@env.filter` are called **decorators**.
+They mark the functions you want to export as functions and filters, respectively. 
+
+
+You could write the module in the following way:
+
+```python
+def my_function(...):
+    return ...
+
+def shout(value: str) -> str:
+    return value.upper()
+
+def define_env(env: ModuleEnvironment):
+    "This function contains the exports"
+
+    env.variables["my_function"] = my_function
+
+    env.filters["shout"] = shout
+```
+
+This is equivalent to using the decorators.
+
+
+
+
+
+## Calling exported functions
+### As constructs
+Any exported function can be invoked as a construct:
+
+if the function had been define in Python as:
+
+```Python
+def define_env(env: ModuleEnvironment):
+    "This function contains the exports"
+
+    @env.export
+    def my_function(arg1:str, arg2:str):
+        return ...
+```
+
+Then it could be used in this way (arguments called by position):
+
+```yaml
+.my_function: [foo, bar]
+```
+or (arguments called by name):
+
+```yaml
+.my_function:
+  arg1: foo
+  arg2: bar
+```
+
+
+
+
+
+Protein evaluates the arguments, calls the Python function, and replaces the construct with the return value. This is ideal for structural transformations, data loading, or producing YAML/JSON fragments.
+
+### Inside expressions
+The same function can also be used inside expressions:
+```yaml
+value: "{{ my_function('foo', 'bar') }}"
+```
+This is ideal for computing values, formatting strings, or performing small transformations. One export gives you both call paths automatically.
+
+## Scoping rules
+Protein maintains a stack of scopes. A program begins with its own scope, and additional scopes may be created by constructs such as `.local`. When resolving a variable or function name, Protein searches the current scope, then underlying scopes, then host bindings (exported module values). Modules populate the current scope with exported variables, exported functions, and exported filters.
+
+## Host bindings
+`.define` stores variables in the current scope. `.function` stores Protein-defined functions in the current scope. When you import a module:
 ```yaml
 .import_module: path/to/module.py
 ```
-
-All exported variables will become part of the current scope.
-
-!!! Tip
-
-    If you wish to avoid polluting the current scope, you can create a new
-    scope, which will last as long as this node is being run.
-
-    ```yaml
-    servers: 
-      .local:
-
-      .import_module: path/to/module.py
-      ...
-    ```
-
-## Example 1: Adding a function and a filter to expressions
-
-### Problem
-Suppose we want to have expressions that emphasize the name for a user:
-
-- `greet('Joe')`, should return `Hello Joe`.
-- and `greet('Joe')| shout` should return `HELLO JOE`. 
-
-In Jinja `shout` is called a **[filter](https://jinja.palletsprojects.com/en/stable/templates/#filters)**. 
-It is a special type of function, which
-receives, as its first argument, the result of the expression before the pipe symbol (`|`).
-It has only one argument (the input string),
-that argument is implicit and no parentheses are needed.
-
-This is what the Protein code should look like.
-
-```yaml
-.define:
-  module: module1.py
-  name: Joe
-  sentence: "Hello world!"
-
-data:
-  #function contained in the module
-  greeting: "{{ greet(name)}}"
-  #filter contained in the module
-  shout: "{{ name | shout }}"
-  # variable contained in a module
-  app_name: "{{app_name}}"
-```
-
-### Solution
-To do so we need to declare the functions `greet()` and `shout()`, in a module 
-(`greet.py`) before being allowed to use them.
+Protein executes the module’s `define_env()` function and adds its exports to the current scope. These exports become available as constructs, as expression-level callables, and as filters (if declared as filters).
 
 
+### Export types
+| Export type          | Construct         | Expression                 | Filter        |
+| -------------------- | ----------------- | -------------------------- | ------------- |
+| `@env.export`        | ✔️ `.my_function:` | ✔️ `{{ my_function(...) }}` | ❌             |
+| `@env.filter`        | ❌                 | ✔️ `{{ value                | my_filter }}` | ✔️ |
+| `env.variables[...]` | ✔️ `.varname`      | ✔️ `{{ varname }}`          | ❌             |
 
+## Results of functions  (aside of strings)
 
-This is done with the `define_env()` function, which takes the variable `env` as an argument.
+Most of the time, you would think of a function as something returning a **string** to Protein.
+However, this is **not** always the case.
 
-Use:
+Functions or filters your write **may** return the following values:
 
-- `env.export` as a decorator for a function you want to make visible in Jinja.
-- `env.filter` as a decorator for a filter function.
+- **Scalars**: strings, reals, integers, booleans
+- **Mappings**: these are essentially dictionaries, or compatible types
+- **Sequences**: these are essentially lists, or compatible types.
 
-Otherwise, you can also load directly variables (and functions) into the `env.variables` dictionary.
+!!! Warning "Exported Functions are not allowed to return any other types"
+    The returned values from functions you write in Protein modules, are tested
+    at runtime. If a value of any other type than the above is found, Protein will raise a TYPERROR.
+
+Supposing that you had the following function:
 
 ```python
-"""
-A sample module
-"""
+    # export a function:
+    @env.export
+    def my_function():
+        return ['foo', 'bar', 'baz']
+```
 
+Then: 
+
+```yaml
+foo:
+    .my_function: []
+```
+
+Would return:
+```yaml
+foo:
+    - foo
+    - bar
+    - baz
+```
+
+If you use the second form (with Jinja):
+
+```yaml
+foo: "{{ my_function() }}"
+```
+
+**you will obtain the same result**:
+
+```yaml
+foo:
+    - foo
+    - bar
+    - baz
+```
+
+!!! question "How is this possible?"
+
+    We now that Jinja expressions return only strings; so how it possible that
+    a value from expression is could be transformed into sequences, mappings, etc.?
+    
+    The answer is simple: there is a rule in Protein that **_every_ result of an expression is passed
+    to the standard function that **deserializes** literals in Python**
+    (reconstructs them from strings): [`ast.literal_eval()`](https://docs.python.org/3/library/ast.html#ast.literal_eval).
+
+    | Result (String)           | Result (Deserialized)   | Type     |
+    | ------------------------- | ----------------------- | -------- |
+    | `"2.5"`                   | `2.5`                   | Float    |
+    | `"'2.5'"`                 | `'2.5'`                 | String   |
+    | `"['foo', 'bar', 'baz']"` | `['foo', 'bar', 'baz']` | Sequence |
+
+    If that function succeeds in generating a scalar or a composite of sequences/mappings with
+    scalars in them, then it is accepted as such. Otherwise, the result is treated as string.
+
+    That rule works surprising well, and does what you would normally expect.
+    
+    What are the chances that you would accidentally produce a composite (sequence/mappings)
+    when you had, in reality, intended to produce a string? They are _very_ low.
+    
+    Also, **`ast.literal_eval()` only produces literals**. It cannot call any code and,
+    in particular, it cannot evaluate functions.
+
+
+## Example: adding a function and a filter
+We want `greet('Joe')` → `"Hello Joe"`, `greet('Joe') | shout` → `"HELLO JOE!!!"`, and the ability to call `greet` as a construct.
+
+### Module (`greet.py`)
+```python
 from protein import ModuleEnvironment
-
 def define_env(env: ModuleEnvironment):
-    "Define your functions, filters and variables here"
-
     @env.export
     def greet(name: str) -> str:
         return f"Hello {name}"
-    
     @env.filter
     def shout(value: str) -> str:
         return f"{value.upper()}!!!"
-    
     env.variables["app_name"] = "Protein"
 ```
-
-Finally, we should update the Protein file, by importing the module
-(here, before the `data` map):
-
+### Protein file
 ```yaml
-.import_module greet.py
+.import_module: greet.py
+.define:
+  name: Joe
+data:
+  greeting: "{{ greet(name) }}"
+  loud: "{{ name | shout }}"
+  app: "{{ app_name }}"
+.greet:
+  name: Joe
 ```
 
-
-## Example 2: Calling an external module
-
-### Problem
-Suppose we have an external source file called `servers.json`:.
-
-```json
-[
-  { "hostname": "apollo", "ip": "192.168.1.10", "category": "live" },
-  { "hostname": "zephyr", "ip": "192.168.1.20", "category": "development" },
-  { "hostname": "orion",  "ip": "192.168.1.30", "category": "test" },
-  { "hostname": "athena", "ip": "192.168.1.40", "category": "live" }
-]
-```
-
-Let's say that we want the list of live servers, for creating a YAML file that will handle the
-development (e.g. in Kubernetes). 
-
-
-### Solution
-
-To do that we would need an expression that contains a call to a simple
-function that returns a list of live machines we need to deploy.
-
-```yaml
-.local
-    servers = "{{ servers('live') }}"
-    ...
-```
-
-!!! Tip "Type conversions"
-    Even though the expression `"{{ servers('live') }}"` is a string (that's required by YAML syntax),
-    the result will be a Python list which will be then appropriately converted
-    into a YAML sequence.
-
-To do that, we need a ** module**, written in Python, and import it before using it 
-(here, before the `.local` construct):
-
-```yaml
-.import_module: "my_module.py
-```
-
-Here is the Python module:
-
+## Example: loading external data
+Suppose we have a JSON file describing servers. We want a function that returns all servers in a given category.
+### Module (`servers.py`)
 ```python
-"""
-A sample module
-"""
 import json
 from protein import ModuleEnvironment
-
-SERVERS_FILE = "servers.json"  # source of truth
-
+SERVERS_FILE = "servers.json"
 def define_env(env: ModuleEnvironment):
-    "Define your functions, filters and variables here"
-
     @env.export
     def servers(category):
-        """
-        Return hostnames and IPs that match the given category.
-        """
         with open(SERVERS_FILE) as f:
             data = json.load(f)
-        return [(m["hostname"], m["ip"]) for m in data 
-                            if m["category"] == category]
-
+        return [
+            (m["hostname"], m["ip"])
+            for m in data
+            if m["category"] == category
+        ]
 ```
+### Protein file
+```yaml
+.import_module: servers.py
+.local
+  live_servers: "{{ servers('live') }}"
+```
+Or as a construct:
+```yaml
+.servers:
+  category: live
+```
+
+## Summary
+Protein modules allow you to extend the language with Python code. Exports become available as constructs, as functions in Jinja expressions, as filters in Jinja expressions (if declared as such), and as variables. This dual integration makes Python modules a powerful way to enrich Protein with domain‑specific logic, external data, and reusable utilities.
 

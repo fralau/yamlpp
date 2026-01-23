@@ -2,29 +2,45 @@
 
 ## Problem
 
-Nowadays, a lot of software is piloted by data files, typically JSON or YAML files.
+Nowadays, a lot of software is driven by data files, typically JSON or YAML files.
 
 
 JSON and YAML are excellent file formats but they are essentially static. Sometimes, the content of a file must change according to circumstances (typically when the environment changes or when you have different
 configuratons for test or production, etc.). 
 
 
-Manually maintaining different versions with the same boiler-plate data can be time-consuming and error-prone.
+Manually maintaining different versions with the same boiler-plate data, can be time-consuming and error-prone.
 
 
 ## Introducing Protein
-What if we had a way to generate a new data file (or more than one) according to a single
-set of source data?
+What if there was a way to generate a new data file (or more than one) according to a single
+set of data? The purpose of **Protein** is to help programmers prepare data files in various formats,
+(JSON, YAML, but also Markdown,  bbHTML, CSS, etc.) with rules that produce your various data
+files, according to the same set of source data. 
 
-The purpose of **Protein** is to help programmers prepare data files in various formats,
-(JSON, YAML, but also HTML, etc.) with rules that produce your data according to source data. 
+Protein extends standard YAML with **constructs** (commands) for declaration of variables, conditionals, iteration, functions, importing and exporting YAML files, and importing Python modules.
 
-It extends standard YAML with constructs for variable declaration, conditionals, iteration, functions, importing and exporting YAML files, and importing Python modules.
+
+!!! Important
+    Protein does **not** work like other languages, where a program is
+    a sequence of commands: Protein allows you to **enrich** an existing YAML tree with constructs (commands starting with a dot, such as `.load`) that will manipulate that tree.
+
+    1. In Protein, you find constructs mixed with normal YAML elements.
+    2. Every construct is executed in turn.
+    3. When a construct is executed, it performs a certain transformation
+    or action and then it **vanishes** (disappears)
+    4. The execution of a Protein program stops when all constructs have been
+    executed and have vanished.
+
+
+
 
 Protein is a macro language, since it manipulates the YAML tree on which it resides.
 
 
-Here is a simple example:
+
+
+Here is a simple example, which does not much:
 
 **Protein**:
 ```yaml
@@ -41,10 +57,12 @@ message: "Hello, Alice!"
 
 ### General principles
 
-The language is composed of **constructs**, which are denoted keys starting with a dot (`.`), such
+The language is composed of **constructs** (Protein commands), denoted by keys starting with a dot (`.`), such
 as `.local`, `.if`, `.switch`, etc.
 
-The Protein preprocessor uses these constructs modify the tree, and the constructs disappear.
+
+
+**The Protein preprocessor uses these constructs to modify the tree, and the constructs vanish.**
 
 The result is pure YAML.
 

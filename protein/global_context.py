@@ -14,7 +14,10 @@ NOTE:
 import os
 
 import keyring
-from markdown_it import MarkdownIt
+
+
+
+
 
 from .sql import osquery
 from .util import dequote, LITERAL_PREFIX
@@ -56,29 +59,67 @@ def quote(value: str) -> str:
         return value
     return f"{LITERAL_PREFIX}{value}"
 
+# ---------------------------------
+# Markdown
+# ---------------------------------
 
+from markdown_it import MarkdownIt
+from mdit_py_plugins.tasklists import tasklists_plugin
+from mdit_py_plugins.footnote import footnote_plugin
+from mdit_py_plugins.container import container_plugin
+from mdit_py_plugins.front_matter import front_matter_plugin
 
-
-# Create a single parser instance (fast, reusable)
-_md = MarkdownIt()
-
-def to_html(s: str) -> str:
+def make_markdown_parser() -> MarkdownIt:
     """
-    Convert Markdown text to HTML using markdown-it-py.
+    Create a MarkdownIt parser with standard plugins for Protein.
+    It is configured to behave similarly to GitHub‑flavored Markdown.
+
+    This is a factory function that creates a new parser instance.
+    If you need a reusable instance, use the global `_md` instance.
+    """
+    md = (
+        MarkdownIt("commonmark")
+        .use(tasklists_plugin)
+        .use(footnote_plugin)
+        .enable("strikethrough")
+        .use(front_matter_plugin)
+        .enable("table")
+    )
+
+    OPTIONS = ['note', 'tip', 'warning', 'danger', 'info', 'error', 'example', 'quote']
+    for option in OPTIONS:
+        md = md.use(container_plugin, option)
+
+    return md
+
+
+
+def to_html(text: str, 
+            allow_html: bool = False) -> str:
+    """
+    Convert Markdown text to HTML using markdown-it-py,
+    with a GitHub‑like flavor.
 
     - Deterministic output
     - Safe for use inside Protein templates
+
+    Arguments:
+        text: The Markdown text to convert.
+        allow_html: If True, allow raw HTML in the Markdown input.
+            Default is False, which escapes HTML tags.
 
     Forward‑compatibility:
         This function currently assumes Markdown as the native markup format.
         Future versions may accept an explicit `format` argument to support
         additional markup languages.
     """
-    if not isinstance(s, str):
-        raise TypeError("render_markdown_to_html expects a string")
+    mymd = make_markdown_parser()
 
-    return _md.render(s)
+    mymd.options["html"] = allow_html
+    if not isinstance(text, str):
+        raise TypeError("to_html expects a string")
 
+    return mymd.render(text)
 
 # ---------------------------------
 # Global functions for Jinja2

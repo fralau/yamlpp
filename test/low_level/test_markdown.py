@@ -1,5 +1,7 @@
 """
 Test the reading of markdown files
+
+See also test_gfm.py for GitHub‑flavored Markdown tests.
 """
 
 import pytest

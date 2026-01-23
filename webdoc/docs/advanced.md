@@ -241,10 +241,10 @@ the value is exported:
 - The [`.write_buffer`](reference.md#write_buffer) construct will also strip the prefix.
 
 
-### Protein‑idiomatic multi‑workflow generator
+#### Example: Protein‑idiomatic multi‑workflow generator
 
 ```yaml
-.local:
+.define:
   workflows:
     - { name: build,   version: 0.0.1 }
     - { name: release, version: 0.0.2 }
@@ -265,19 +265,18 @@ the value is exported:
                 steps:
                     - name: Show GitHub value
                       run: |
-                        {% raw %}
+                        #!literal
                         echo "Value is ${{ github.ref }}"
-                        {% endraw %}
 ```
 
 
 
-- **`.local` first** — pure data, no logic.
-- **Top‑level directory key** (`.github/workflows:`) — Protein treats it as a mapping.
+- **`.define` first** — this binds the two mappings (`build` and `release`)
+  to the `workflows` key.
 - **`.foreach`** produces a *sequence of 1‑key maps*, which collapses into a mapping of workflow files.
 - **Each iteration produces a file** named `"{{ w.name }}.yml"`.
 - **`.template`** emits literal GitHub workflow YAML.
-- **`{% raw %}`** ensures GitHub’s `${{ … }}` syntax survives untouched.
+- **`#!literal`** ensures GitHub’s `${{ … }}` syntax survives untouched.
 - **Collapse rule** merges all generated workflow files into a single mapping under `.github/workflows`.
 
 The result is a directory‑like structure:
@@ -289,16 +288,120 @@ The result is a directory‑like structure:
 ```
 
 
-### Dequoting
+### Evaluation
 
-To dequote a template (without evaluating it right away):
+What do you do, if you need to turn a literal template, into a calculated value?
 
+To evaluate a template even when it is quoted, use the `.eval` construct:
+
+```yaml
+# evaluation despite the quote:
+text: 
+  .eval: "#!literal Hello {{ name }}"
+```
+
+The construct `.eval` applies to a string expression, obligatorily;
+applying it to any other type will raise a TYPE error.
+Like any Protein expression it can return a string, another type of scalar,
+a mapping, or a sequence.
+
+
+
+
+## Dynamically changing the initial context
+
+There are **three** main ways of changing the initial context of your Protein file.
+
+  - A. With command-line arguments (also as sequences or mappings)
+  - B. Through environment variables
+  - C. With a dotenv file
+
+### A. With command-line arguments
+
+From the command-line, you can update (or create) the top-level `.create` context
+in your initial Protein tree, with the `--set` option
+
+#### Arguments as scalars
+
+The easiest way is to pass scalars (typically integers or strings):
+
+```sh
+Protein test1.yaml --set env=prod count=5
+```
+
+Supposing that your Protein file contained:
+
+```yaml
+.local
+  env: test
+  count: 3
+  foo: barbaz
+```
+
+It will contain:
+```yaml
+.local
+  env: prod
+  count: 5
+  foo: barbaz
+```
+
+If the tree started with a sequence, a top level map will be created:
+
+```yaml
+.local
+  env: prod
+  count: 5
+.do
+  - ...
+```
+
+#### Arguments as sequences or mappings
+You can also set arguments as sequences or mappings (use YAML syntax):
+
+```sh
+Protein test1.yaml --set env=prod users="[Laurent, Paul]"
+```
+
+
+### B. Through environment variables
+
+Another way to change dynamically the initial conditions that govern a Protein program,
+is to use the environment variables of the OS, through the `getenv()` function.
+
+This statement may be used in any part of the Protein tree.
+
+```yaml
+server:
+  address: "{{ get_env('MY_SERVER`) }}"
+```
+
+### C. With a dotenv file
+
+[Dotenv](https://dotenvx.com/docs/env-file) files (with the `.env` suffix) are a common way
+of storing configuration information, with key-value pairs separated by the `=` sign.
+
+Protein supports dotenv files as input. Suppose a file called `.env`, in the source directory
+of the Protein interpreter.
+
+```dotenv
+# Environment variables
+API_KEY=123456
+DEBUG=true
+PORT=8080
+```
+
+If you want to make those values available as _variables_ to your program:
 
 ```yaml
 .define:
-  raw_text: "#!literal Hello {{ name }}"
+  .load '.env'
+```
 
-  # dequoting:
-  text: "{{ raw_text | dequote }}"
+Since they are used within a `.define` construct, they will not appear in the output
+(which is normally want you want), unless you explictly require it:
+
+```yaml
+connect: "https://localhost:{{ PORT }}?api_key={{ API_KEY }}&debug={{ DEBUG }}"
 ```
 

@@ -412,8 +412,6 @@ Protein constructs are expanded into YAML, before being exported.
 
 === "YAML"
 
-    The logic is handled directly by the function `Protein.util.to_yaml()`.
-
 
     !!! Tip "Reason why"  
         The reason why the tool had to implement its own export argument specification, is that
@@ -448,10 +446,6 @@ Protein constructs are expanded into YAML, before being exported.
         - **No duplicate keys are allowed**
           (this is hard-coded, for consistency: the YAML spec explicitly forbids it,
           and a second key would override the earlier one, which could introduce undetected bugs). 
-
-
-
-
 
 
 
@@ -684,6 +678,22 @@ A YAML sequence of mapping nodes, one per row.
   age: 41
 ```
 
+### File Generation (non-structured)
+
+#### `.write`
+
+**Definition**: Write directly into a text file (non-structured).
+The location of the file is relative to the source directory of the program.
+It has two argumnents: `filename` and `text`.
+
+**Example**:
+
+```yaml
+.write:
+    .filename: myfile.txt
+    .text: |
+        Hello World
+```
 
 ### Buffer generation
 
@@ -755,6 +765,8 @@ your line should be left-aligned.
 
 **Definition**: Write the contents of a buffer to a file.
 
+The location of the file is relative to the source directory of the program.
+
 **Fields**:
 
 | Field       | Required | Description                                        |
@@ -776,104 +788,6 @@ your line should be left-aligned.
 
 
 
-
-
-## Dynamically changing the initial context
-
-There are four ways of changing the initial context of your Protein file.
-
-A. With command-line arguments (also as sequences or mappings)
-B. Through environment variables
-C. With a dotenv file
-
-### A. With command-line arguments
-
-From the command-line, you can update (or create) the top-level `.create` context
-in your initial Protein tree, with the `--set` option
-
-#### Arguments as scalars
-
-The easiest way is to pass scalars (typically integers or strings):
-
-```sh
-Protein test1.yaml --set env=prod count=5
-```
-
-Supposing that your Protein file contained:
-
-```yaml
-.local
-  env: test
-  count: 3
-  foo: barbaz
-```
-
-It will contain:
-```yaml
-.local
-  env: prod
-  count: 5
-  foo: barbaz
-```
-
-If the tree started with a sequence, a top level map will be created:
-
-```yaml
-.local
-  env: prod
-  count: 5
-.do
-  - ...
-```
-
-#### Arguments as sequences or mappings
-You can also set arguments as sequences or mappings (use YAML syntax):
-
-```sh
-Protein test1.yaml --set env=prod users="[Laurent, Paul]"
-```
-
-
-### B. Through environment variables
-
-Another way to change dynamically the initial conditions that govern a Protein program,
-is to use the environment variables of the OS, through the `getenv()` function.
-
-This statement may be used in any part of the Protein tree.
-
-```yaml
-server:
-  address: "{{ get_env('MY_SERVER`) }}"
-```
-
-### C. With a dotenv file
-
-[Dotenv](https://dotenvx.com/docs/env-file) files (with the `.env` suffix) are a common way
-of storing configuration information, with key-value pairs separated by the `=` sign.
-
-Protein supports dotenv files as input. Suppose a file called `.env`, in the source directory
-of the Protein interpreter.
-
-```dotenv
-# Environment variables
-API_KEY=123456
-DEBUG=true
-PORT=8080
-```
-
-If you want to make those values available as _variables_ to your program:
-
-```yaml
-.define:
-  .load '.env'
-```
-
-Since they are used within a `.define` construct, they will not appear in the output
-(which is normally want you want), unless you explictly require it:
-
-```yaml
-connect: "https://localhost:{{ PORT }}?api_key={{ API_KEY }}&debug={{ DEBUG }}"
-```
 
 
 
